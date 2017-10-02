@@ -13,8 +13,66 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define FLAG 0x7E
+#define ADDR 0x03
+#define CTRL 0x03
+#define S0 0
+#define S1 1
+#define S2 2
+#define S3 3
+#define S4 4
 
 volatile int STOP=FALSE;
+
+
+int stateMachine(unsigned char c, int* state, char* trama){
+	
+	switch(*state){
+		case S0:
+			if(c == FLAG){
+				*state = S1;
+			}
+			break;
+		case S1:
+			if(c != FLAG){
+				*state = S2;
+				trama[0] = c;
+			}
+			break;
+		case S2:
+			if(c != FLAG){
+				*state = S3;
+				trama[1] = c;				
+			}
+			break;
+		case S3:
+			if(c != FLAG){
+				trama[2] = c;
+				if(trama[0]^trama[1] != trama[2]){
+					*state = S0;			
+				}
+				else{
+					*state=S4;
+				}
+								
+			}
+			break;
+		case S4:
+			if(c == FLAG){
+				*state = S5;
+			}
+			else{
+				*state = S0;
+			}
+			break;
+		case S5:
+			break;
+			
+	}
+}
+
+
+
 
 int main(int argc, char** argv)
 {
@@ -76,9 +134,9 @@ int main(int argc, char** argv)
 	int i=0;
     while (STOP==FALSE) {       /* loop for input */
       res = read(fd,&buf[i],1);   /* returns after 5 chars have been input */
-	  if(res>0){
+	if(res>0){
 			
-		if (buf[i]=='\0') STOP=TRUE;
+		if (buf[i]==FLAG) STOP=TRUE;
 		i++;
       } 
      
