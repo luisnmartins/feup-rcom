@@ -33,7 +33,12 @@ void alarm_handler();
 void stateMachine(unsigned char c, int* state,unsigned char* trama);
 int set_writer(int* fd);
 int set_reader(int* fd);
-int LLOPEN(int* fd, char* mode);
+void set_serial_port(char* port, int* fd);
+int close_serial_port(int* fd);
+int LLOPEN(char* port, char* mode);
+int LLWRITE(char* msg);
+int LLREAD(char* msg);
+void LLCLOSE(int* fd);
 
 
 #endif

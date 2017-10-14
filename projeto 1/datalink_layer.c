@@ -6,6 +6,10 @@ unsigned char flag_attempts=1;
 unsigned char flag_alarm=1;
 unsigned char flag_error=0;
 
+struct termios oldtio,newtio;
+
+
+
 void alarm_handler(){
 	flag_attempts++;
 	if(flag_attempts <4){
@@ -126,16 +130,89 @@ int set_reader(int* fd){
 }
 
 
+/* SET Serial Port Initilizations */
 
-int LLOPEN(int* fd, char* mode){
+void set_serial_port(char* port, int* fd){
+	
+	int c;
+    int i, sum = 0, speed = 0;
+    
+    /*
+      Open serial port device for reading and writing and not as controlling tty
+      because we don't want to get killed if linenoise sends CTRL-C.
+    */
 
+    *fd = open(port, O_RDWR | O_NOCTTY );
+    
+	if (*fd <0) {perror(port); exit(-1); }
+
+    if (tcgetattr(*fd,&oldtio) == -1) { /* save current port settings */
+      perror("tcgetattr");
+      exit(-1);
+    }
+
+    bzero(&newtio, sizeof(newtio));
+    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_iflag = IGNPAR;
+    newtio.c_oflag = 0;
+
+    /* set input mode (non-canonical, no echo,...) */
+    newtio.c_lflag = 0;
+
+    newtio.c_cc[VTIME]    = 1;   /* inter-character timer unused */
+    newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
+
+
+    /* 
+      VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
+      leitura do(s) pr�ximo(s) caracter(es)
+    */
+
+    tcflush(*fd, TCIOFLUSH);
+
+    if ( tcsetattr(*fd,TCSANOW,&newtio) == -1) {
+      perror("tcsetattr");
+      exit(-1);
+    }
+
+    printf("New termios structure set\n");
+
+	
+}
+
+
+int close_serial_port(int* fd){
+	if ( tcsetattr(*fd,TCSANOW,&oldtio) == -1) {
+      perror("tcsetattr");
+      exit(-1);
+    }
+
+    close(*fd);
+    return 0;
+}
+
+
+int LLOPEN(char* port, char* mode){
+
+  int fd;
+  int result;
+  set_serial_port(port, &fd);
+	  
   if(strcmp(mode,"r") == 0){
-    return set_reader(fd);
+    result = set_reader(&fd);
 
   }
   else if(strcmp(mode,"w") == 0){
-    return set_writer(fd);
+    result = set_writer(&fd);
   }
+
+  if(result  == TRUE){
+	return fd;
+  }
+  else{
+	return -1;
+  }
+
 }
 
 int LLWRITE(char* msg){
@@ -144,4 +221,8 @@ int LLWRITE(char* msg){
 
 int LLREAD(char* msg){
 	//TODO
+}
+
+void LLCLOSE(int* fd){
+	close_serial_port(fd);
 }
