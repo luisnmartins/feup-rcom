@@ -28,6 +28,10 @@
 #define S3 3
 #define S4 4
 
+#define C_START 2
+#define C_END 3
+
+
 
 void alarm_handler();
 void stateMachine(unsigned char c, int* state,unsigned char* trama);

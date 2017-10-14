@@ -126,24 +126,27 @@ int set_reader(int* fd){
 
 	res = write(*fd,UA,5);
 	sleep(1);
+
 	printf("%d bytes written\n", res);
+
+	return TRUE;
 }
 
 
 /* SET Serial Port Initilizations */
 
 void set_serial_port(char* port, int* fd){
-	
+
 	int c;
     int i, sum = 0, speed = 0;
-    
+
     /*
       Open serial port device for reading and writing and not as controlling tty
       because we don't want to get killed if linenoise sends CTRL-C.
     */
 
     *fd = open(port, O_RDWR | O_NOCTTY );
-    
+
 	if (*fd <0) {perror(port); exit(-1); }
 
     if (tcgetattr(*fd,&oldtio) == -1) { /* save current port settings */
@@ -163,9 +166,9 @@ void set_serial_port(char* port, int* fd){
     newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
 
-    /* 
-      VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-      leitura do(s) pr�ximo(s) caracter(es)
+    /*
+      VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
+      leitura do(s) próximo(s) caracter(es)
     */
 
     tcflush(*fd, TCIOFLUSH);
@@ -177,11 +180,11 @@ void set_serial_port(char* port, int* fd){
 
     printf("New termios structure set\n");
 
-	
 }
 
 
 int close_serial_port(int* fd){
+
 	if ( tcsetattr(*fd,TCSANOW,&oldtio) == -1) {
       perror("tcsetattr");
       exit(-1);
@@ -197,7 +200,7 @@ int LLOPEN(char* port, char* mode){
   int fd;
   int result;
   set_serial_port(port, &fd);
-	  
+
   if(strcmp(mode,"r") == 0){
     result = set_reader(&fd);
 
@@ -215,11 +218,68 @@ int LLOPEN(char* port, char* mode){
 
 }
 
-int LLWRITE(char* msg){
+int send_message(int *fd, char* msg, int type_msg){
+		size_t msg_size = strlen(msg);
+		int i=0;
+		int bcc2;
+		char* final_msg;
+		for(i; i<msg_size; i++){
+			bcc2 ^=msg[i];
+		}
+		msg = (char *) realloc(msg, strlen(msg)+sizeof(int));
+		strcat(msg, bcc2);
+		byte_stuffing(msg);
+		final_msg = (char *) malloc(strlen(msg)+4);
+		/*strcat(final_msg, 0x)*/
+		LLWRITE(fd, msg)
+
+}
+
+int byte_stuffing(char* msg){
+	char* str;
+	int i=0;
+
+	size_t msg_size = strlen(msg);
+	str = (char *) malloc(msg_size);
+
+	for(i; i<msg_size; i++){
+
+		if(strcmp(msg[i], '0x7e') == 0){
+			str = (char *) realloc(str, strlen(str)+1);
+			strcat(str, '0x7d0x5e');
+		}
+		else if(strcmp(msg[i],0x7d) == 0){
+			str = (char *) realloc(str, strlen(str)+1);
+			strcat(str, '0x7d0x5d');
+		}
+		else{
+			strcat(str, msg[i]);
+		}
+	}
+	msg = str;
+	return TRUE;
+}
+
+int byte_destuffing(char* msg){
+	char* str;
+	int i=0;
+
 	//TODO
 }
 
-int LLREAD(char* msg){
+
+int LLWRITE(int* fd, char* msg, int length){
+
+	int res = write(*fd, msg, length);
+	if(res>0 && res == length){
+		return TRUE;
+	}
+	else{
+		return FALSE;
+	}
+}
+
+int LLREAD(int* fd, char* msg){
 	//TODO
 }
 
