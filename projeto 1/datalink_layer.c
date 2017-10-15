@@ -218,53 +218,90 @@ int LLOPEN(char* port, char* mode){
 
 }
 
-int send_message(int *fd, char* msg, int type_msg){
-		size_t msg_size = strlen(msg);
+int send_package(int* fd, unsigned char* msg, int* length){
+	int i=0;
+	unsigned char bcc2;
+	msg = (unsigned char *) realloc(str, *length+1);
+	for(i; i<*length; i++){
+		bcc2 ^=msg[i];
+	}
+	msg[*length] = bbc2;
+	
+
+}
+
+/*int send_message(int *fd, char* msg, int length){
 		int i=0;
-		int bcc2;
+		unsigned char* bcc2 = (unsigned char*);
 		char* final_msg;
-		for(i; i<msg_size; i++){
+		for(i; i<length; i++){
 			bcc2 ^=msg[i];
 		}
 		msg = (char *) realloc(msg, strlen(msg)+sizeof(int));
 		strcat(msg, bcc2);
 		byte_stuffing(msg);
 		final_msg = (char *) malloc(strlen(msg)+4);
-		/*strcat(final_msg, 0x)*/
+		/*strcat(final_msg, 0x)
 		LLWRITE(fd, msg)
 
-}
+}*/
 
-int byte_stuffing(char* msg){
-	char* str;
+unsigned char* byte_stuffing(unsigned char* msg, int* length){
+	unsigned char* str;
 	int i=0;
+	int j=0;
+	int new_length = *length;
+	str = (unsigned char *) malloc(*length);
 
-	size_t msg_size = strlen(msg);
-	str = (char *) malloc(msg_size);
-
-	for(i; i<msg_size; i++){
-
-		if(strcmp(msg[i], '0x7e') == 0){
-			str = (char *) realloc(str, strlen(str)+1);
-			strcat(str, '0x7d0x5e');
+	for(i; i < *length; i++, j++){
+		if(msg[i] ==  0x7e){
+			str = (unsigned char *) realloc(str, new_length+1);
+			str[j] = 0x7d;
+			str[j+1] = 0x5e;
+			new_length++;
+			j++;
 		}
-		else if(strcmp(msg[i],0x7d) == 0){
-			str = (char *) realloc(str, strlen(str)+1);
-			strcat(str, '0x7d0x5d');
+		else if(msg[i] == 0x7d){
+			str = (unsigned char *) realloc(str, new_length+1);
+			str[j] = 0x7d;
+			str[j+1]= 0x5d;
+			new_length++;
+			j++;
 		}
 		else{
-			strcat(str, msg[i]);
+			str[j] = msg[i];
 		}
 	}
-	msg = str;
-	return TRUE;
+
+	*length = new_length;
+	return str;
 }
 
-int byte_destuffing(char* msg){
-	char* str;
+unsigned char* byte_destuffing(unsigned char* msg, int* length){
+	unsigned char* str;
 	int i=0;
+	int new_length = 0;
 
-	//TODO
+	for(i; i<*length; i++){
+		new_length++;
+		str = (unsigned char *) realloc(str, new_length);
+		if(msg[i] == 0x7d){
+			if(msg[i+1] == 0x5e){
+				str[new_length-1] = 0x7e;
+				i++;
+			}
+	 		else if(msg[i+1] == 0x5d){
+				str[new_length -1] = 0x7d;
+				i++;
+			}
+		}
+		else{
+			str[new_length-1] = msg[i];
+		}
+
+	}
+	*length = new_length;
+	return str;
 }
 
 

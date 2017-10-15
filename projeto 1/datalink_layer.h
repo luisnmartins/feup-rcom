@@ -40,8 +40,11 @@ int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
 int close_serial_port(int* fd);
 int LLOPEN(char* port, char* mode);
-int LLWRITE(char* msg);
-int LLREAD(char* msg);
+int send_package(int* fd, unsigned char* msg, int* length);
+unsigned char* byte_stuffing(unsigned char* msg, int* length);
+unsigned char* byte_destuffing(unsigned char* msg, int* length);
+int LLWRITE(int* fd, char* msg, int length);
+int LLREAD(int* fd, char* msg);
 void LLCLOSE(int* fd);
 
 

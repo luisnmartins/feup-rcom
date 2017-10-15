@@ -17,7 +17,10 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
+#define DATA_CONTROL 1
 
+int send_message(int* fd, unsigned char* msg, int* length);
+unsigned char* data_package_constructor(unsigned char* msg, int* length);
 int main(int argc, char** argv);
 
 #endif
