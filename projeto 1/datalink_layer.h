@@ -31,8 +31,6 @@
 #define C_START 2
 #define C_END 3
 
-
-
 void alarm_handler();
 void stateMachine(unsigned char c, int* state,unsigned char* trama);
 int set_writer(int* fd);
@@ -40,11 +38,15 @@ int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
 int close_serial_port(int* fd);
 int LLOPEN(char* port, char* mode);
+unsigned char* add_control_message(unsigned char* msg, int* length);
 int send_package(int* fd, unsigned char* msg, int* length);
+int get_package(int* fd, unsigned char* msg);
+unsigned char* verify_bcc2(unsigned char* control_message, int* length);
+unsigned char* verify_rmsg_connection(unsigned char* msg, int* length);
 unsigned char* byte_stuffing(unsigned char* msg, int* length);
 unsigned char* byte_destuffing(unsigned char* msg, int* length);
 int LLWRITE(int* fd, char* msg, int length);
-int LLREAD(int* fd, char* msg);
+int LLREAD(int* fd,unsigned char* msg);
 void LLCLOSE(int* fd);
 
 

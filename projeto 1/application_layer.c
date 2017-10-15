@@ -13,6 +13,16 @@ int send_message(int* fd, unsigned char* msg, int* length){
 	send_package(fd, data_message,length);
 }
 
+int get_message(int* fd, unsigned char* msg){
+	int length = get_package(fd, msg);
+
+	int i=0;
+	for(i; i<length; i++){
+		printf("MSG: %x\n",msg[i]);
+	}
+}
+
+
 
 unsigned char* data_package_constructor(unsigned char* msg, int* length){
 
@@ -58,19 +68,26 @@ int main(int argc, char** argv){
 
 
 	if(fd>0){
-			unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
+			if(strcmp("w", argv[2])==0){
+				unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
+				message[0] = 0x48;
+				message[1] = 0x45;
+				message[2] = 0x4c;
+				message[3] = 0x4c;
+				message[4] = 0x4F;
+				message[5] = 0x00;
+				message[6] = 0x48;
+				message[7] = 0x7e;
+				message[8] = 0x7d;
+				int length = 9;
+				send_message(&fd, message, &length);
+			}
+			else if(strcmp("r", argv[2])==0){
+				unsigned char* read_msg;
+				read_msg = (unsigned char*) malloc(1);
+				int msg_length = get_message(&fd, read_msg);
 
-			message[0] = 0x48;
-			message[1] = 0x45;
-			message[2] = 0x4c;
-			message[3] = 0x4c;
-			message[4] = 0x4F;
-			message[5] = 0x00;
-			message[6] = 0x48;
-			message[7] = 0x7e;
-			message[8] = 0x7d;
-			int length = 9;
-			send_message(&fd, message, &length);
+			}
 			/*
 			unsigned char* stuffed_message = byte_stuffing(message, &length);
 			int i=0;
@@ -100,8 +117,7 @@ int main(int argc, char** argv){
 			else{
 				exit(-1);
 			}*/
+			LLCLOSE(&fd);
 	}
-
-	LLCLOSE(&fd);
 
 }
