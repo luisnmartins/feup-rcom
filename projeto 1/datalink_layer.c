@@ -2,11 +2,12 @@
 #include "datalink_layer.h"
 
 volatile int STOP=FALSE;
-unsigned char flag_attempts=1;
-unsigned char flag_alarm=1;
-unsigned char flag_error=0;
+volatile unsigned char flag_attempts=1;
+volatile unsigned char flag_alarm=1;
+volatile unsigned char flag_error=0;
 
 struct termios oldtio,newtio;
+volatile unsigned char control_value;
 
 
 
@@ -23,51 +24,51 @@ void alarm_handler(){
 
 
 
-void stateMachine(unsigned char c, int* state, unsigned char* trama){
+void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type){
 
 	switch(*state){
 		case S0:
 			if(c == FLAG){
 				*state = S1;
+				trama[*length-1] = c;
 			}
 			break;
 		case S1:
 			if(c != FLAG){
-				*state = S2;
-				trama[0] = c;
+				trama[*length-1] = c;
+				if(*length==4){
+					if((trama[1]^trama[2]) != trama[3]){
+						*state = S0;
+						*length =0;
+					}
+					else{
+						if(trama_type == TRAMA_I){
+							control_value = c;
+						}
+						*state=S2;
+					}
+				}
+			}
+			else
+			{
+				*state = S0;
+				*length = 0;
 			}
 			break;
 		case S2:
-			if(c != FLAG){
-				*state = S3;
-				trama[1] = c;
-			}
-			break;
-		case S3:
-			if(c != FLAG){
-				trama[2] = c;
-				if((trama[0]^trama[1]) != trama[2]){
-
-					*state = S0;
-				}
-				else{
-					*state=S4;
-				}
-
-			}
-			break;
-		case S4:
+			trama[*length-1] = c;
 			if(c == FLAG){
 				STOP = TRUE;
-        alarm(0);
+				alarm(0);
 				flag_alarm=0;
 			}
 			else{
-				*state = S0;
+				if(trama_type == TRAMA_S){
+					*state = S0;
+					*length = 0;
+				}
 			}
 			break;
-
-
 	}
 }
 
@@ -77,7 +78,8 @@ int set_writer(int* fd){
   unsigned char SET[5] = {FLAG, ADDR, CW, BCCW, FLAG};
   unsigned char elem;
 	int res;
-  unsigned char trama[3];
+  unsigned char trama[5];
+	int trama_length = 1;
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
   while(flag_attempts < 4 && flag_alarm == 1){
@@ -92,7 +94,8 @@ int set_writer(int* fd){
       while(STOP == FALSE && flag_alarm == 0){
 					res = read(*fd,&elem,1);
        		if(res >0) {
-          		stateMachine(elem, &state, trama);
+          		state_machine(elem, &state, trama, &trama_length, TRAMA_S);
+							trama_length++;
        		}
       }
   }
@@ -102,7 +105,7 @@ int set_writer(int* fd){
      return FALSE;
   }
   else{
-    printf("%u%u%u\n",trama[0],trama[1],trama[2]);
+		printf("%u%u%u\n",trama[1],trama[2],trama[3]);
     return TRUE;
   }
 
@@ -113,16 +116,18 @@ int set_reader(int* fd){
   unsigned char UA[5] = {FLAG, ADDR, CR, BCCR, FLAG};
   char elem;
 	int res;
-  unsigned char trama[3];
+  unsigned char trama[5];
+	int trama_length =1;
   int state=0;
   while (STOP==FALSE) {       /* loop for input */
       res = read(*fd,&elem,1);
 
       if(res>0){
-        stateMachine(elem, &state, trama);
+        state_machine(elem, &state, trama, &trama_length, TRAMA_S);
+				trama_length++;
       }
     }
-  printf("%u%u%u\n",trama[0],trama[1],trama[2]);
+  printf("%u%u%u\n",trama[1],trama[2],trama[3]);
 
 	res = write(*fd,UA,5);
 	sleep(1);
@@ -246,11 +251,14 @@ int send_package(int* fd, unsigned char* msg, int* length){
 int get_package(int* fd, unsigned char* msg){
 
 	int length = LLREAD(fd, msg);
+	if(length >0){
+		send_rr();
+	}
 	unsigned char* control_message = verify_rmsg_connection(msg, &length);
 	if(control_message == NULL)
 		return -1;
 	unsigned char* data_message = verify_bcc2(control_message, &length);
-	msg = (unsigned char*) realloc(msg, length);
+	msg = (unsigned char*) malloc(length);
 	memcpy(msg, data_message, length);
 	return length;
 }
@@ -363,6 +371,7 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 
 unsigned char* byte_destuffing(unsigned char* msg, int* length){
 	unsigned char* str;
+	str = (unsigned char*) malloc(1);
 	int i=0;
 	int new_length = 0;
 
@@ -404,23 +413,6 @@ int LLWRITE(int* fd, char* msg, int length){
 	}
 }
 
-int get_readed_values(unsigned char elem, int* state){
-
-	switch (*state) {
-		case S0:
-			if(elem == FLAG){
-				*state = S1;
-			}
-			break;
-		case S1:
-			if(elem == FLAG){
-				STOP = TRUE;
-			}
-			break;
-	}
-}
-
-
 
 int LLREAD(int* fd,unsigned char* msg){
 
@@ -432,12 +424,12 @@ int LLREAD(int* fd,unsigned char* msg){
 	while (STOP==FALSE) {       /* loop for input */
 			res = read(*fd,&elem,1);
 			if(res>0){
-				get_readed_values(elem, &state);
 				msg_length++;
 				msg = realloc(msg, msg_length);
-				msg[msg_length-1] = elem;
+				state_machine(elem, &state, msg, &msg_length, TRAMA_I);
 			}
-		}
+	}
+
 		/*int i=0;
 		for(i; i<msg_length; i++){
 			printf("READ: %x\n",msg[i]);

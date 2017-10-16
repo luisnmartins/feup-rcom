@@ -31,8 +31,12 @@
 #define C_START 2
 #define C_END 3
 
+
+#define TRAMA_S 0
+#define TRAMA_I 1
+
 void alarm_handler();
-void stateMachine(unsigned char c, int* state,unsigned char* trama);
+void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type);
 int set_writer(int* fd);
 int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
