@@ -8,9 +8,9 @@
 	char i_start[] = {C_START, t_msg, l_msg, msg_size};
 
 }*/
-int send_message(int* fd, unsigned char* msg, int* length){
-	unsigned char* data_message = data_package_constructor(msg, length);
-	send_package(fd, data_message,length);
+int send_message(int* fd, unsigned char* msg, int length){
+	int data_length = data_package_constructor(msg, length);
+	LLWRITE(fd, msg, data_length);
 }
 
 int get_message(int* fd, unsigned char* msg){
@@ -24,14 +24,14 @@ int get_message(int* fd, unsigned char* msg){
 
 
 
-unsigned char* data_package_constructor(unsigned char* msg, int* length){
+int data_package_constructor(unsigned char* msg, int length){
 
-		unsigned char* data_package = (unsigned char*) malloc(*length+4);
+		unsigned char* data_package = (unsigned char*) malloc(length+4);
 
 		unsigned char c = 0x01;
 		unsigned char n = 0x00;
-		int l2 = *length/255;
-		int l1 = *length%255;
+		int l2 = length/255;
+		int l1 = length%255;
 
 		data_package[0] = c;
 		data_package[1] = n;
@@ -39,12 +39,15 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 		data_package[3] = l1;
 
 		int i=0;
-		for(i; i<*length; i++){
+		for(i; i<length; i++){
 			data_package[i+4] = msg[i];
 		}
-		*length = *length+4;
-		free(msg);
-		return data_package;
+
+		length = length+4;
+		msg = (unsigned char*) realloc(msg, length);
+		memcpy(msg, data_package, length);
+		free(data_package);
+		return length;
 }
 
 
@@ -80,7 +83,7 @@ int main(int argc, char** argv){
 				message[7] = 0x7e;
 				message[8] = 0x7d;
 				int length = 9;
-				send_message(&fd, message, &length);
+				send_message(&fd, message, length);
 			}
 			else if(strcmp("r", argv[2])==0){
 				unsigned char* read_msg;

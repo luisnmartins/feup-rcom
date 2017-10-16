@@ -25,8 +25,8 @@
   unsigned char* data;
 }*/
 
-int send_message(int* fd, unsigned char* msg, int* length);
-unsigned char* data_package_constructor(unsigned char* msg, int* length);
+int send_message(int* fd, unsigned char* msg, int length);
+int data_package_constructor(unsigned char* msg, int length);
 int main(int argc, char** argv);
 
 #endif

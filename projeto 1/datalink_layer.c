@@ -7,7 +7,7 @@ volatile unsigned char flag_alarm=1;
 volatile unsigned char flag_error=0;
 
 struct termios oldtio,newtio;
-volatile unsigned char control_value;
+volatile unsigned char control_value=0;
 
 
 
@@ -225,32 +225,30 @@ int LLOPEN(char* port, char* mode){
 }
 
 
-int send_package(int* fd, unsigned char* msg, int* length){
+int create_package(int* fd, unsigned char* msg, int length){
 	int i=0;
 	unsigned char bcc2 = 0x00;
-	msg = (unsigned char *) realloc(msg, *length+1);
-	for(i; i<*length; i++){
+	msg = (unsigned char *) realloc(msg, length+1);
+	for(i; i<length; i++){
 		bcc2 ^=msg[i];
 	}
-	msg[*length] = bcc2;
-	*length = *length+1;
-	unsigned char* stuffed_message = byte_stuffing(msg, length);
-	unsigned char* full_message = add_control_message(stuffed_message, length);
-
-	return LLWRITE(fd,full_message,*length);
+	msg[length] = bcc2;
+	length = length+1;
+	int stuffed_length = byte_stuffing(msg, length);
+	int control_message_length = add_control_message(msg, stuffed_length);
+	return control_message_length;
 }
 
 
-/*int send_rr(int* fd, unsigned char N){
-	unsigned char* rr[] = {FLAG, ADDR, N^1, ADDR^(N^1), FLAG};
+/*int send_rr(int* fd){
+	unsigned char* rr[] = {FLAG, ADDR, control_value^1, ADDR^(control_value^1), FLAG};
 	LLWRITE(fd, rr, 5);
 }*/
 
 
-
 int get_package(int* fd, unsigned char* msg){
 
-	int length = LLREAD(fd, msg);
+	/*int length = LLREAD(fd, msg);
 	if(length >0){
 		send_rr();
 	}
@@ -260,65 +258,68 @@ int get_package(int* fd, unsigned char* msg){
 	unsigned char* data_message = verify_bcc2(control_message, &length);
 	msg = (unsigned char*) malloc(length);
 	memcpy(msg, data_message, length);
-	return length;
+	return length;*/
 }
 
-unsigned char* verify_bcc2(unsigned char* control_message, int* length){
-	unsigned char* destuffed_message = byte_destuffing(control_message, length);
+int verify_bcc2(unsigned char* control_message, int length){
+	int des_length = byte_destuffing(control_message, length);
 	int i=0;
 	unsigned char control_bcc2 = 0x00;
-	for(i; i<*length-1; i++){
-		control_bcc2 ^= destuffed_message[i];
+	for(i; i<des_length-1; i++){
+		control_bcc2 ^= control_message[i];
 	}
-	if(control_bcc2 != destuffed_message[*length-1])
-		return NULL;
+	if(control_bcc2 != control_message[des_length-1])
+		return -1;
 
 	i=0;
-	unsigned char* data_message = (unsigned char*) malloc(*length-1);
-	for(i; i<*length-1; i++){
-			data_message[i] = destuffed_message[i];
+	unsigned char* data_message = (unsigned char*) malloc(des_length-1);
+	for(i; i<des_length-1; i++){
+			data_message[i] = control_message[i];
 	}
-	*length = *length-1;
-	free(destuffed_message);
-	return data_message;
+	des_length--;
+	control_message = (unsigned char*) realloc(control_message, des_length);
+	free(data_message);
+	return des_length;
 }
 
 
 
-unsigned char* verify_rmsg_connection(unsigned char* msg, int* length){
+int verify_rmsg_connection(unsigned char* msg, int length){
 
 	if((msg[1]^msg[2]) != msg[3]){
-		return NULL;
+		return -1;
 	}
 
-	unsigned char* control_message = (unsigned char*) malloc(*length-5);
+	unsigned char* control_message = (unsigned char*) malloc(length-5);
 	int i=4;
 	int j=0;
-	for(i; i<*length-1; i++, j++){
+	for(i; i<length-1; i++, j++){
 
 		control_message[j] = msg[i];
 	}
-	free(msg);
-	*length = *length-5;
-	return control_message;
+	msg = (unsigned char*) realloc(msg, length-5);
+	memcpy(msg, control_message, length-5);
+	free(control_message);
+	return length-5;
 }
 
 
-unsigned char* add_control_message(unsigned char* msg, int* length){
-	unsigned char* full_message = (unsigned char*) malloc(*length+5);
-	*length = *length+5;
+int add_control_message(unsigned char* msg, int length){
+	length = length+5;
+	unsigned char* full_message = (unsigned char*) malloc(length);
 	int i=0;
 	full_message[0] = FLAG;
-	full_message[1] = 0x03;
-	full_message[2] = 0x00;
+	full_message[1] = ADDR;
+	full_message[2] = control_value;
 	full_message[3] = full_message[1]^full_message[2];
-	for(i; i<*length; i++){
+	for(i; i<length; i++){
 		full_message[i+4] = msg[i];
 	}
-	full_message[*length-1] = FLAG;
-	free(msg);
-	return full_message;
-
+	full_message[length-1] = FLAG;
+	msg = (unsigned char*) realloc(msg, length);
+	memcpy(msg, full_message, length);
+	free(full_message);
+	return length;
 }
 
 /*int send_message(int *fd, char* msg, int length){
@@ -337,14 +338,14 @@ unsigned char* add_control_message(unsigned char* msg, int* length){
 
 }*/
 
-unsigned char* byte_stuffing(unsigned char* msg, int* length){
+int byte_stuffing(unsigned char* msg, int length){
 	unsigned char* str;
 	int i=0;
 	int j=0;
-	int new_length = *length;
-	str = (unsigned char *) malloc(*length);
+	int new_length = length;
+	str = (unsigned char *) malloc(length);
 
-	for(i; i < *length; i++, j++){
+	for(i; i < length; i++, j++){
 		if(msg[i] ==  0x7e){
 			str = (unsigned char *) realloc(str, new_length+1);
 			str[j] = 0x7d;
@@ -364,18 +365,19 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 		}
 	}
 
-	*length = new_length;
-	free(msg);
-	return str;
+	msg = (unsigned char*) realloc(msg, new_length);
+	memcpy(msg, str, new_length);
+	free(str);
+	return new_length;
 }
 
-unsigned char* byte_destuffing(unsigned char* msg, int* length){
+int byte_destuffing(unsigned char* msg, int length){
 	unsigned char* str;
 	str = (unsigned char*) malloc(1);
 	int i=0;
 	int new_length = 0;
 
-	for(i; i<*length; i++){
+	for(i; i<length; i++){
 		new_length++;
 		str = (unsigned char *) realloc(str, new_length);
 		if(msg[i] == 0x7d){
@@ -393,18 +395,25 @@ unsigned char* byte_destuffing(unsigned char* msg, int* length){
 		}
 
 	}
-	*length = new_length;
-	return str;
+	msg = (unsigned char*) realloc(msg, new_length);
+	memcpy(msg, str, new_length);
+	free(str);
+	return new_length;
 }
 
 
+
 int LLWRITE(int* fd, char* msg, int length){
+	int final_length = create_package(fd, msg, length);
+	if(final_length<0)
+		return FALSE;
 	int i=0;
-	for(i=0;i<length; i++){
+	for(i=0;i<final_length; i++){
 		printf("Valor: %x\n", msg[i]);
 	}
-	int res = write(*fd, msg, length);
-	sleep(1);
+	int res = write(*fd, msg, final_length);
+	return get_result(fd);
+
 	if(res>0 && res == length){
 		return TRUE;
 	}
@@ -412,6 +421,11 @@ int LLWRITE(int* fd, char* msg, int length){
 		return FALSE;
 	}
 }
+
+int get_result(int* fd){
+
+}
+
 
 
 int LLREAD(int* fd,unsigned char* msg){
