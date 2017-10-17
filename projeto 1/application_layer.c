@@ -68,10 +68,26 @@ int main(int argc, char** argv){
 
 
   int fd = LLOPEN(argv[1], argv[2]);
-
+	//int fd = 1;
 
 	if(fd>0){
 			if(strcmp("w", argv[2])==0){
+
+				 int filesize ;
+				unsigned char * filename = "pinguim.gif";
+				unsigned char * start_packet;
+				unsigned char * end_packet;
+				FILE *fileToSend = fopen(filename,"rb");
+				if(get_file_size(fileToSend,&filesize) == 1)
+				{
+					return 1;
+				}
+				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
+				send_message(&fd,start_packet,startpacket_size);
+				handle_readfile(fileToSend,fd,128);
+				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
+				send_message(&fd,end_packet,endpacket_size);
+
 				unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
 				message[0] = 0x48;
 				message[1] = 0x45;
@@ -121,6 +137,90 @@ int main(int argc, char** argv){
 				exit(-1);
 			}*/
 			LLCLOSE(&fd);
+	}else 
+	{
+		printf("Error opening serial port\n");
+		return 1;
 	}
 
 }
+
+
+int get_file_size(FILE *ptr_myfile, int* filesize){
+	struct stat buf;
+	int fileDescriptor = fileno(ptr_myfile);
+
+	if(fstat(fileDescriptor,&buf) < 0){
+
+		printf("Error getting file info\n");
+		return 1;
+
+	}
+
+	*filesize =  buf.st_size;
+	return 0;
+
+}
+
+int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type)
+{
+	int length_filename = sizeof(filename)/sizeof(filename[0]);
+	unsigned char * filesize_char;
+	memcpy(filesize_char,(unsigned char *) filesize,sizeof(int));
+	int length_filesize = sizeof(filesize_char)/sizeof(filesize_char[0]);
+
+	start_packet = (unsigned char *) malloc(length_filename+length_filesize+5);
+	if(type == 1)
+	start_packet[0] = 0x02;
+	else {
+		start_packet[0] = 0x03;
+	}
+	start_packet[1] = 0x00;
+	start_packet[2] = (unsigned char) length_filesize;
+	int i = 0;
+	int j = 3;
+	for(i; i < length_filesize; i++,j++){
+		start_packet[j] = filesize_char[i];
+	}
+	start_packet[j] = 0x01;
+	j++;
+	start_packet[j] = (unsigned char) length_filename;
+	j++;
+	i=0;
+	for(;i < length_filename; i++,j++)
+	{
+		start_packet[j] = filename[i];
+	}
+
+	return sizeof(start_packet)/sizeof(start_packet[0]);
+
+}
+
+
+
+void handle_readfile(FILE*fp,int port,int sizetoread)
+{
+	unsigned char* data = malloc(sizetoread);
+	//FILE * newfile = fopen("penguin.gif","wb");
+
+	fseek(fp,0,SEEK_SET);
+	while(!feof(fp))
+	{
+		int res = 0;
+		res = fread(data,sizeof(unsigned char),sizetoread,fp);
+		if(res > 0)
+		{
+			//handle_writefile(newfile,data,sizetoread);
+			send_message(&port,data,sizeof(data)/sizeof(data[0]));
+		}
+		
+	}
+}
+
+void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){
+	
+	fseek(fp,0,SEEK_END);
+	fwrite(data,sizeof(unsigned char),sizetowrite,fp);
+}
+
+
