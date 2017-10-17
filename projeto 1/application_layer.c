@@ -90,11 +90,11 @@ int main(int argc, char** argv){
 				{
 					return 1;
 				}
-				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
+				/*int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
 				send_message(&fd,start_packet,startpacket_size);
 				handle_readfile(fileToSend,fd,128);
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
-				send_message(&fd,end_packet,endpacket_size);
+				send_message(&fd,end_packet,endpacket_size);*/
 
 				unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
 				message[0] = 0x48;
