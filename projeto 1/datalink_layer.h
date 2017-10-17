@@ -27,6 +27,10 @@
 #define S2 2
 #define S3 3
 #define S4 4
+#define SESC 5
+
+#define RR 1
+#define REJ 0
 
 #define C_START 2
 #define C_END 3
@@ -42,15 +46,16 @@ int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
 int close_serial_port(int* fd);
 int LLOPEN(char* port, char* mode);
-int create_package(int* fd, unsigned char* msg, int length);
+int create_package(unsigned char* msg, int length);
 int get_package(int* fd, unsigned char* msg);
 int get_result(int *fd);
 int verify_bcc2(unsigned char* control_message, int length);
-int verify_rmsg_connection(unsigned char* msg, int length);
+int remove_head_msg_connection(unsigned char* msg, int length);
 int add_control_message(unsigned char* msg, int length);
 int byte_stuffing(unsigned char* msg, int length);
 int byte_destuffing(unsigned char* msg, int length);
 int LLWRITE(int* fd, char* msg, int length);
+int send_response(int* fd, unsigned int type, unsigned char c);
 int LLREAD(int* fd,unsigned char* msg);
 void LLCLOSE(int* fd);
 

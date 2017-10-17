@@ -5,18 +5,17 @@ volatile int STOP=FALSE;
 volatile unsigned char flag_attempts=1;
 volatile unsigned char flag_alarm=1;
 volatile unsigned char flag_error=0;
-
+const unsigned char control_values[] = { 0x00, 0x40, 0x05, 0x85, 0x01, 0x81 };
 struct termios oldtio,newtio;
 volatile unsigned char control_value=0;
+volatile unsigned char duplicate=FALSE;
 
 
 
 void alarm_handler(){
 	flag_attempts++;
-	if(flag_attempts <4){
-		printf("RETRY: %u\n", flag_attempts);
-	}
-  if(flag_attempts == 3){
+
+  if(flag_attempts >= 4){
     flag_error = 1;
   }
 	flag_alarm=1;
@@ -25,7 +24,7 @@ void alarm_handler(){
 
 
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type){
-
+	
 	switch(*state){
 		case S0:
 			if(c == FLAG){
@@ -35,16 +34,13 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 			break;
 		case S1:
 			if(c != FLAG){
+					
 				trama[*length-1] = c;
 				if(*length==4){
-					if((trama[1]^trama[2]) != trama[3]){
-						*state = S0;
-						*length =0;
+					if((trama[1]^trama[2]) != trama[3]){						
+						*state = SESC;
 					}
 					else{
-						if(trama_type == TRAMA_I){
-							control_value = c;
-						}
 						*state=S2;
 					}
 				}
@@ -69,6 +65,18 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 				}
 			}
 			break;
+		case SESC:
+			trama[*length-1] = c;
+			if(c == FLAG){
+				if(trama_type == TRAMA_I){				
+					flag_error = 1;					
+					STOP = TRUE;
+				}
+				else{
+					*state = S0;
+					*length = 0;
+				}
+			}
 	}
 }
 
@@ -79,23 +87,24 @@ int set_writer(int* fd){
   unsigned char elem;
 	int res;
   unsigned char trama[5];
-	int trama_length = 1;
+	int trama_length = 0;
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
   while(flag_attempts < 4 && flag_alarm == 1){
-      res = write(*fd,SET,5);
+	    printf("TRY: %x\n", flag_attempts);  
+		res = write(*fd,SET,5);
       printf("%d bytes written\n", res);
-
       alarm(3);
       flag_alarm=0;
 
     // Wait for UA signal.
 
       while(STOP == FALSE && flag_alarm == 0){
-					res = read(*fd,&elem,1);
+			res = read(*fd,&elem,1);
        		if(res >0) {
+				trama_length++;
           		state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-							trama_length++;
+				
        		}
       }
   }
@@ -117,14 +126,15 @@ int set_reader(int* fd){
   char elem;
 	int res;
   unsigned char trama[5];
-	int trama_length =1;
+	int trama_length =0;
   int state=0;
   while (STOP==FALSE) {       /* loop for input */
       res = read(*fd,&elem,1);
 
       if(res>0){
+		trama_length++;
         state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-				trama_length++;
+				
       }
     }
   printf("%u%u%u\n",trama[1],trama[2],trama[3]);
@@ -225,7 +235,7 @@ int LLOPEN(char* port, char* mode){
 }
 
 
-int create_package(int* fd, unsigned char* msg, int length){
+int create_package(unsigned char* msg, int length){
 	int i=0;
 	unsigned char bcc2 = 0x00;
 	msg = (unsigned char *) realloc(msg, length+1);
@@ -271,9 +281,8 @@ int verify_bcc2(unsigned char* control_message, int length){
 	if(control_bcc2 != control_message[des_length-1])
 		return -1;
 
-	i=0;
 	unsigned char* data_message = (unsigned char*) malloc(des_length-1);
-	for(i; i<des_length-1; i++){
+	for(i=0; i<des_length-1; i++){
 			data_message[i] = control_message[i];
 	}
 	des_length--;
@@ -284,11 +293,7 @@ int verify_bcc2(unsigned char* control_message, int length){
 
 
 
-int verify_rmsg_connection(unsigned char* msg, int length){
-
-	if((msg[1]^msg[2]) != msg[3]){
-		return -1;
-	}
+int remove_head_msg_connection(unsigned char* msg, int length){
 
 	unsigned char* control_message = (unsigned char*) malloc(length-5);
 	int i=4;
@@ -310,7 +315,7 @@ int add_control_message(unsigned char* msg, int length){
 	int i=0;
 	full_message[0] = FLAG;
 	full_message[1] = ADDR;
-	full_message[2] = control_value;
+	full_message[2] = control_values[control_value];
 	full_message[3] = full_message[1]^full_message[2];
 	for(i; i<length; i++){
 		full_message[i+4] = msg[i];
@@ -404,28 +409,58 @@ int byte_destuffing(unsigned char* msg, int length){
 
 
 int LLWRITE(int* fd, char* msg, int length){
-	int final_length = create_package(fd, msg, length);
+	int final_length = create_package(msg, length);
 	if(final_length<0)
 		return FALSE;
 	int i=0;
 	for(i=0;i<final_length; i++){
 		printf("Valor: %x\n", msg[i]);
 	}
-	int res = write(*fd, msg, final_length);
-	return get_result(fd);
 
-	if(res>0 && res == length){
-		return TRUE;
-	}
-	else{
-		return FALSE;
-	}
+	unsigned char elem;
+	int res;
+	unsigned char trama[5];
+	int trama_length = 0;
+	int state=S0;
+
+	STOP=FALSE;
+	flag_attempts=1;
+	flag_alarm=1;
+	flag_error=0;
+
+	while(flag_attempts < 4 && flag_alarm == 1){
+			int res = write(*fd, msg, final_length);
+			printf("%d bytes written\n", res);
+
+			alarm(3);
+			flag_alarm=0;
+
+		// Wait for UA signal.
+			while(STOP == FALSE && flag_alarm == 0){
+					res = read(*fd,&elem,1);
+					if(res >0) {
+							trama_length++;
+							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
+							
+					}
+			}
+			int i=0;
+			for(i; i<trama_length; i++){
+				printf("RESP: %x\n", trama[i]);
+			}
+
+			if (STOP == TRUE) {
+				printf("ENTROU\n");		
+				if(trama[2] == control_values[control_value+4]){
+					flag_alarm=1;
+					flag_error=0;
+					STOP = FALSE;
+					state = S0;
+					trama_length = 0;
+				}
+			}
+		}
 }
-
-int get_result(int* fd){
-
-}
-
 
 
 int LLREAD(int* fd,unsigned char* msg){
@@ -434,6 +469,7 @@ int LLREAD(int* fd,unsigned char* msg){
 	int state = S0;
 	int res;
 	int msg_length=0;
+	flag_error = 0;
 	STOP = FALSE;
 	while (STOP==FALSE) {       /* loop for input */
 			res = read(*fd,&elem,1);
@@ -444,12 +480,72 @@ int LLREAD(int* fd,unsigned char* msg){
 			}
 	}
 
-		/*int i=0;
-		for(i; i<msg_length; i++){
-			printf("READ: %x\n",msg[i]);
-		}*/
-		return msg_length;
+	if(flag_error == 1){
+		printf("REJ BCC1:");
+		send_response(fd, REJ, msg[2]);
+		return -1;
+	}
+	duplicate = (control_values[control_value] == msg[2]) ? FALSE: TRUE;
+	unsigned char char2_temp = msg[2];
+	msg_length = remove_head_msg_connection(msg, msg_length);
+	msg_length = verify_bcc2(msg, msg_length);
+
+	if(msg_length == -1){
+		if(duplicate == TRUE){
+			send_response(fd, RR, char2_temp);
+			return -1;
+		}
+		else{
+			send_response(fd, REJ, char2_temp);
+			return -1;
+		}
+	}
+	else{
+		if(duplicate != TRUE){
+			control_value = send_response(fd, RR, char2_temp);
+			return msg_length;
+		}
+		else{
+			send_response(fd, RR, char2_temp);
+			return -1;
+		}
+
+	}
+
 }
+
+int send_response(int* fd, unsigned int type, unsigned char c){	
+	unsigned char bool_val;
+	unsigned char response[5];
+	response[0] = FLAG;
+	response[1] = ADDR;
+	response[4] = FLAG;
+	if(c == 0x00)
+		bool_val = 0;
+	else
+		bool_val = 1;
+
+	switch (type) {
+		case RR:
+			printf("RR%d\n", bool_val^1);
+			response[2] = control_values[(bool_val^1)+2];
+			break;
+		case REJ:
+			printf("REJ%d\n", bool_val);
+			response[2] = control_values[bool_val+4];
+			break;
+	}
+	response[3] = response[1]^response[2];
+	int i=0;
+for(i; i<5; i++){
+	printf("RESP: %x\n", response[i]);
+}
+
+	write(*fd, response, 5);
+
+	return bool_val^1;
+}
+
 
 void LLCLOSE(int* fd){
 	close_serial_port(fd);
