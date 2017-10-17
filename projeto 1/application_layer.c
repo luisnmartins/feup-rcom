@@ -14,12 +14,20 @@ int send_message(int* fd, unsigned char* msg, int length){
 }
 
 int get_message(int* fd, unsigned char* msg){
-	int length = get_package(fd, msg);
+	
+	msg = (unsigned char*) malloc(1);	
+	int length;
+	do{
+		length = LLREAD(fd, msg);
+	}while(length == -1);
 
+	/*if(length > 0){
+	
 	int i=0;
 	for(i; i<length; i++){
 		printf("MSG: %x\n",msg[i]);
 	}
+	}*/
 }
 
 
@@ -103,7 +111,6 @@ int main(int argc, char** argv){
 			}
 			else if(strcmp("r", argv[2])==0){
 				unsigned char* read_msg;
-				read_msg = (unsigned char*) malloc(1);
 				int msg_length = get_message(&fd, read_msg);
 
 			}
