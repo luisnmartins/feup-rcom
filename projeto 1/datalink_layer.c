@@ -24,7 +24,7 @@ void alarm_handler(){
 
 
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type){
-	
+
 	switch(*state){
 		case S0:
 			if(c == FLAG){
@@ -34,10 +34,10 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 			break;
 		case S1:
 			if(c != FLAG){
-					
+
 				trama[*length-1] = c;
 				if(*length==4){
-					if((trama[1]^trama[2]) != trama[3]){						
+					if((trama[1]^trama[2]) != trama[3]){
 						*state = SESC;
 					}
 					else{
@@ -68,8 +68,8 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 		case SESC:
 			trama[*length-1] = c;
 			if(c == FLAG){
-				if(trama_type == TRAMA_I){				
-					flag_error = 1;					
+				if(trama_type == TRAMA_I){
+					flag_error = 1;
 					STOP = TRUE;
 				}
 				else{
@@ -91,7 +91,7 @@ int set_writer(int* fd){
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
   while(flag_attempts < 4 && flag_alarm == 1){
-	    printf("TRY: %x\n", flag_attempts);  
+	    printf("TRY: %x\n", flag_attempts);
 		res = write(*fd,SET,5);
       printf("%d bytes written\n", res);
       alarm(3);
@@ -104,7 +104,7 @@ int set_writer(int* fd){
        		if(res >0) {
 				trama_length++;
           		state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-				
+
        		}
       }
   }
@@ -134,7 +134,7 @@ int set_reader(int* fd){
       if(res>0){
 		trama_length++;
         state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-				
+
       }
     }
   printf("%u%u%u\n",trama[1],trama[2],trama[3]);
@@ -246,6 +246,7 @@ int create_package(unsigned char* msg, int length){
 	length = length+1;
 	int stuffed_length = byte_stuffing(msg, length);
 	int control_message_length = add_control_message(msg, stuffed_length);
+
 	return control_message_length;
 }
 
@@ -441,7 +442,7 @@ int LLWRITE(int* fd, char* msg, int length){
 					if(res >0) {
 							trama_length++;
 							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-							
+
 					}
 			}
 			int i=0;
@@ -450,7 +451,7 @@ int LLWRITE(int* fd, char* msg, int length){
 			}
 
 			if (STOP == TRUE) {
-				printf("ENTROU\n");		
+				printf("ENTROU\n");
 				if(trama[2] == control_values[control_value+4]){
 					flag_alarm=1;
 					flag_error=0;
@@ -514,7 +515,7 @@ int LLREAD(int* fd,unsigned char* msg){
 
 }
 
-int send_response(int* fd, unsigned int type, unsigned char c){	
+int send_response(int* fd, unsigned int type, unsigned char c){
 	unsigned char bool_val;
 	unsigned char response[5];
 	response[0] = FLAG;

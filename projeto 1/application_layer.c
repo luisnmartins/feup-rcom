@@ -10,19 +10,27 @@
 }*/
 int send_message(int* fd, unsigned char* msg, int length){
 	int data_length = data_package_constructor(msg, length);
+
 	LLWRITE(fd, msg, data_length);
 }
 
 int get_message(int* fd, unsigned char* msg){
-	
-	msg = (unsigned char*) malloc(1);	
+
+	msg = (unsigned char*) malloc(1);
 	int length;
 	do{
 		length = LLREAD(fd, msg);
+		printf("%d\n", length);
 	}while(length == -1);
 
+	switch(msg[0]){
+		case 0x02:
+			start_message(msg, length);
+		break;
+	}
+
 	/*if(length > 0){
-	
+
 	int i=0;
 	for(i; i<length; i++){
 		printf("MSG: %x\n",msg[i]);
@@ -30,6 +38,37 @@ int get_message(int* fd, unsigned char* msg){
 	}*/
 }
 
+
+int start_message(unsigned char* msg, int *length){
+
+	int i=0;
+	int j=0;
+	unsigned char filesize[4];
+	unsigned char* filename;
+	int filename_size;
+	int filesize_total;
+	if(msg[1] == 0x00){
+		int filesize_size = msg[2];
+		for(i; i<filesize_size; i++){
+			filesize[i] = msg[i+3];
+		}
+		filesize_total = (filesize[0] <<24) | (filesize[1] << 16) | (filesize[2] << 8) | (filesize[3]);
+	}
+	i += 3;
+	if(msg[i] == 0x01){
+		i++;
+		filename_size = msg[i];
+		i++;
+		filename = (unsigned char*) malloc (filename_size);
+		for(j; j<filename_size; j++,i++){
+			filename[j] = msg[i];
+		}
+	}
+	i=0;
+	for(i; i<filename_size; i++){
+		printf("FILENAME: %c\n", filename[i]);
+	}
+}
 
 
 int data_package_constructor(unsigned char* msg, int length){
@@ -95,8 +134,8 @@ int main(int argc, char** argv){
 				for(i; i< startpacket_size;i++){
 					printf("%x\n",start_packet[i]);
 				}
-				/*send_message(&fd,start_packet,startpacket_size);
-				handle_readfile(fileToSend,fd,128);
+				/*send_message(&fd,start_packet,startpacket_size);/
+				/*handle_readfile(fileToSend,fd,128);
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
 				send_message(&fd,end_packet,endpacket_size);*/
 
@@ -147,8 +186,8 @@ int main(int argc, char** argv){
 			else{
 				exit(-1);
 			}*/
-			//LLCLOSE(&fd);
-	}else 
+			LLCLOSE(&fd);
+	}else
 	{
 		printf("Error opening serial port\n");
 		return 1;
@@ -176,7 +215,7 @@ int get_file_size(FILE *ptr_myfile, int* filesize){
 int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type)
 {
 	int length_filename = 11;
-	
+
 	unsigned char * filesize_char[4];
 	filesize_char[0] = (filesize >> 24) & 0xFF;
 	filesize_char[1] = (filesize >> 16) & 0xFF;
@@ -191,7 +230,7 @@ int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,i
 		start_packet[0] = 0x03;
 	}
 	start_packet[1] = 0x00;
-	start_packet[2] = length_filesize;	
+	start_packet[2] = length_filesize;
 	int i = 0;
 	int j = 3;
 	for(i; i < length_filesize; i++,j++){
@@ -234,14 +273,12 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 			//handle_writefile(newfile,data,sizetoread);
 			send_message(&port,data,sizeof(data)/sizeof(data[0]));
 		}
-		
+
 	}
 }
 
 void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){
-	
+
 	fseek(fp,0,SEEK_END);
 	fwrite(data,sizeof(unsigned char),sizetowrite,fp);
 }
-
-
