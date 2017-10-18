@@ -83,15 +83,19 @@ int main(int argc, char** argv){
 
 				 int filesize ;
 				unsigned char * filename = "pinguim.gif";
-				unsigned char * start_packet;
+				unsigned char * start_packet = malloc(5);
 				unsigned char * end_packet;
 				FILE *fileToSend = fopen(filename,"rb");
 				if(get_file_size(fileToSend,&filesize) == 1)
 				{
 					return 1;
 				}
-				/*int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
-				send_message(&fd,start_packet,startpacket_size);
+				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
+				int i = 0;
+				for(i; i< startpacket_size;i++){
+					printf("%x\n",start_packet[i]);
+				}
+				/*send_message(&fd,start_packet,startpacket_size);
 				handle_readfile(fileToSend,fd,128);
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
 				send_message(&fd,end_packet,endpacket_size);*/
@@ -143,7 +147,7 @@ int main(int argc, char** argv){
 			else{
 				exit(-1);
 			}*/
-			LLCLOSE(&fd);
+			//LLCLOSE(&fd);
 	}else 
 	{
 		printf("Error opening serial port\n");
@@ -171,35 +175,45 @@ int get_file_size(FILE *ptr_myfile, int* filesize){
 
 int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type)
 {
-	int length_filename = sizeof(filename)/sizeof(filename[0]);
-	unsigned char * filesize_char;
-	memcpy(filesize_char,(unsigned char *) filesize,sizeof(int));
+	int length_filename = 11;
+	
+	unsigned char * filesize_char[4];
+	filesize_char[0] = (filesize >> 24) & 0xFF;
+	filesize_char[1] = (filesize >> 16) & 0xFF;
+	filesize_char[2] = (filesize >> 8) & 0xFF;
+	filesize_char[3] = filesize & 0xFF;
 	int length_filesize = sizeof(filesize_char)/sizeof(filesize_char[0]);
 
-	start_packet = (unsigned char *) malloc(length_filename+length_filesize+5);
+	start_packet = (unsigned char *) realloc(start_packet,length_filename+length_filesize+5);
 	if(type == 1)
 	start_packet[0] = 0x02;
 	else {
 		start_packet[0] = 0x03;
 	}
 	start_packet[1] = 0x00;
-	start_packet[2] = (unsigned char) length_filesize;
+	start_packet[2] = length_filesize;	
 	int i = 0;
 	int j = 3;
 	for(i; i < length_filesize; i++,j++){
 		start_packet[j] = filesize_char[i];
 	}
+
 	start_packet[j] = 0x01;
 	j++;
-	start_packet[j] = (unsigned char) length_filename;
+	start_packet[j] =  length_filename;
+
+	//printf("ashdsa%x\n",start_packet[j]);
 	j++;
 	i=0;
 	for(;i < length_filename; i++,j++)
 	{
 		start_packet[j] = filename[i];
 	}
-
-	return sizeof(start_packet)/sizeof(start_packet[0]);
+	/* i=0;
+	 for(; i< length_filename;i++){
+		 printf("%c\n",filename[i]);
+	 }*/
+	return length_filename+length_filesize+5;
 
 }
 
