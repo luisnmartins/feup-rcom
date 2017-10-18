@@ -542,6 +542,7 @@ for(i; i<5; i++){
 }
 
 	write(*fd, response, 5);
+	sleep(1); //TODO REMOVE
 
 	return bool_val^1;
 }
