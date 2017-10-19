@@ -8,25 +8,44 @@
 	char i_start[] = {C_START, t_msg, l_msg, msg_size};
 
 }*/
-int send_message(int* fd, unsigned char* msg, int length){
-	int data_length = data_package_constructor(msg, length);
 
-	LLWRITE(fd, msg, data_length);
+int is_start = FALSE;
+
+int send_message(int* fd, unsigned char* msg, int length){
+	if(is_start == FALSE){
+		unsigned char* data_package = data_package_constructor(msg, &length);
+		LLWRITE(fd, data_package, &length);
+	}
+	else{
+		is_start= FALSE;
+		LLWRITE(fd, msg, &length);
+	}
+	
 }
 
-int get_message(int* fd, unsigned char* msg){
 
-	msg = (unsigned char*) malloc(1);
+unsigned char* get_message(int* fd, unsigned char* msg){
 	int length;
-	do{
-		length = LLREAD(fd, msg);
-		printf("%d\n", length);
-	}while(length == -1);
+	unsigned char* readed_msg;
+	unsigned char* only_data;
+	FILE * created_file;
+		readed_msg = LLREAD(fd, &length);
+	int i=0;
+	for(;i<length;i++){
+		printf("MSG:%x\n",readed_msg[i]);
+	}
 
-	switch(msg[0]){
+	switch(readed_msg[0]){
 		case 0x02:
-			start_message(msg, length);
+			created_file = start_message(readed_msg);
 		break;
+		case 0x01:
+			only_data = get_only_data(readed_msg, &length);
+			handle_writefile(created_file,only_data,length);
+			break;
+		case 0x03:
+			//TODO manda disconnect;
+			break;
 	}
 
 	/*if(length > 0){
@@ -38,8 +57,20 @@ int get_message(int* fd, unsigned char* msg){
 	}*/
 }
 
+unsigned char* get_only_data(unsigned char* readed_msg, int* length){
+	int i=4;
+	int j=0;
+	unsigned char* only_data = (unsigned char*) malloc(*length-4);
+	for(i; i<*length; i++, j++){
+			only_data[j] = readed_msg[i];
+	}
+	*length = *length-4;
+	free(readed_msg);
+	return only_data;
+}
 
-int start_message(unsigned char* msg, int *length){
+
+FILE* start_message(unsigned char* msg){
 
 	int i=0;
 	int j=0;
@@ -68,17 +99,21 @@ int start_message(unsigned char* msg, int *length){
 	for(i; i<filename_size; i++){
 		printf("FILENAME: %c\n", filename[i]);
 	}
+	FILE* pFile;
+	pFile = fopen(filename,"wb");
+	return pFile;
+
 }
 
 
-int data_package_constructor(unsigned char* msg, int length){
+unsigned char* data_package_constructor(unsigned char* msg, int* length){
 
-		unsigned char* data_package = (unsigned char*) malloc(length+4);
+		unsigned char* data_package = (unsigned char*) malloc(*length+4);
 
 		unsigned char c = 0x01;
 		unsigned char n = 0x00;
-		int l2 = length/255;
-		int l1 = length%255;
+		int l2 = *length/255;
+		int l1 = *length%255;
 
 		data_package[0] = c;
 		data_package[1] = n;
@@ -86,15 +121,13 @@ int data_package_constructor(unsigned char* msg, int length){
 		data_package[3] = l1;
 
 		int i=0;
-		for(i; i<length; i++){
+		for(i; i<*length; i++){
 			data_package[i+4] = msg[i];
 		}
 
-		length = length+4;
-		msg = (unsigned char*) realloc(msg, length);
-		memcpy(msg, data_package, length);
-		free(data_package);
-		return length;
+		*length = *length+4;
+		/*free(msg);*/
+		return data_package;
 }
 
 
@@ -130,14 +163,14 @@ int main(int argc, char** argv){
 					return 1;
 				}
 				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
-				int i = 0;
-				for(i; i< startpacket_size;i++){
-					printf("%x\n",start_packet[i]);
-				}
-				/*send_message(&fd,start_packet,startpacket_size);/
-				/*handle_readfile(fileToSend,fd,128);
+				
+				is_start = TRUE;
+				send_message(&fd,start_packet,startpacket_size);
+				printf("IS START: %d\n", is_start);
+				handle_readfile(fileToSend,fd,128);
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
-				send_message(&fd,end_packet,endpacket_size);*/
+				is_start=TRUE;
+				send_message(&fd,end_packet,endpacket_size);
 
 				unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
 				message[0] = 0x48;
@@ -150,11 +183,14 @@ int main(int argc, char** argv){
 				message[7] = 0x7e;
 				message[8] = 0x7d;
 				int length = 9;
-				send_message(&fd, message, length);
+				/*send_message(&fd, message, length);*/
 			}
 			else if(strcmp("r", argv[2])==0){
 				unsigned char* read_msg;
-				int msg_length = get_message(&fd, read_msg);
+				unsigned char* msg;
+				do{
+					msg = get_message(&fd, read_msg);
+				}while(msg != NULL);
 
 			}
 			/*
@@ -270,8 +306,9 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 		res = fread(data,sizeof(unsigned char),sizetoread,fp);
 		if(res > 0)
 		{
+			
 			//handle_writefile(newfile,data,sizetoread);
-			send_message(&port,data,sizeof(data)/sizeof(data[0]));
+			send_message(&port,data,res);
 		}
 
 	}
