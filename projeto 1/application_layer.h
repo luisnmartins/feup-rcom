@@ -34,6 +34,7 @@ int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,i
 FILE* start_message(unsigned char* msg);
 void handle_readfile(FILE*fp,int port,int sizetoread);
 void handle_writefile(FILE * fp,unsigned char * data,int sizetowrite);
+int verify_end(unsigned char* msg, FILE* fp);
 int main(int argc, char** argv);
 
 #endif

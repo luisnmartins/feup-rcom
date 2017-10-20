@@ -29,8 +29,12 @@
 #define S4 4
 #define SESC 5
 
+#define READER 0
+#define WRITER 1
+
 #define RR 1
 #define REJ 0
+#define DISC 0x0B
 
 #define C_START 2
 #define C_END 3
@@ -57,7 +61,8 @@ unsigned char* byte_destuffing(unsigned char* msg, int* length);
 int LLWRITE(int* fd, unsigned char* msg, int* length);
 int send_response(int* fd, unsigned int type, unsigned char c);
 unsigned char* LLREAD(int* fd, int* length);
-void LLCLOSE(int* fd);
+void LLCLOSE(int* fd, int type);
+unsigned char* reader_disc(int*fd,unsigned char* disc);
 
 
 #endif

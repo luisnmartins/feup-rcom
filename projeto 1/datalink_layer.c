@@ -228,7 +228,7 @@ int LLOPEN(char* port, char* mode){
 	return fd;
   }
   else{
-		LLCLOSE(&fd);
+		LLCLOSE(&fd, -1);
 	return -1;
   }
 
@@ -485,6 +485,11 @@ unsigned char* LLREAD(int* fd, int* length){
 		send_response(fd, REJ, msg[2]);
 		return NULL;
 	}
+	if(msg[2] == DISC){
+		LLCLOSE(fd, READER);
+		return "finish";
+	}
+
 	duplicate = (control_values[control_value] == msg[2]) ? FALSE: TRUE;
 	unsigned char char2_temp = msg[2];
 	unsigned char* msg_no_head = remove_head_msg_connection(msg, length);
@@ -548,6 +553,67 @@ for(i; i<5; i++){
 }
 
 
-void LLCLOSE(int* fd){
+void LLCLOSE(int* fd, int type){
+	unsigned char disc[5] = {FLAG, ADDR, DISC, ADDR^DISC, FLAG};
+	unsigned char * received;
+	if(type == READER){
+		received = reader_disc(fd,disc);
+		if(received[2] == CR){
+			printf("Final UA received with success\n");
+		}else {
+			printf("Problem receiving final UA\n");
+		}
+
+
+	}else if(type == WRITER){
+
+		received = reader_disc(fd,disc);
+
+		if(received[2] == DISC){
+
+			printf("Final DISC received with success\n");
+		}else {
+			printf("Problem receiving final DISC\n");
+		}
+		unsigned char UA[5] = {FLAG, ADDR, CR, BCCR, FLAG};
+		write(*fd,UA,5);
+		sleep(1);
+	}
+
 	close_serial_port(fd);
+}
+
+unsigned char* reader_disc(int*fd,unsigned char* disc){
+	 flag_attempts=1;
+	 flag_alarm=1;
+	 flag_error=0;
+	 STOP = FALSE;
+	unsigned char elem;
+	int res;
+  unsigned char* trama = (unsigned char*) malloc(5);
+	int trama_length = 0;
+  int state=0;
+
+	while(flag_attempts < 4 && flag_alarm == 1){
+			printf("TRY: %x\n", flag_attempts);
+		res = write(*fd,disc,5);
+
+			alarm(3);
+			flag_alarm=0;
+
+
+
+			while(STOP == FALSE && flag_alarm == 0){
+			res = read(*fd,&elem,1);
+					if(res >0) {
+						trama_length++;
+							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
+
+					}
+			}
+
+			printf("DISC0 %x\n",trama[0]);
+			return trama;
+
+	}
 }

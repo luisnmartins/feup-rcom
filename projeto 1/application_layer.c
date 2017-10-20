@@ -10,8 +10,11 @@
 }*/
 
 int is_start = FALSE;
+unsigned char* filename;
+int filesize_total;
 
 int send_message(int* fd, unsigned char* msg, int length){
+	printf("SEND MESSAGE RRES\n");
 	if(is_start == FALSE){
 		unsigned char* data_package = data_package_constructor(msg, &length);
 		LLWRITE(fd, data_package, &length);
@@ -31,6 +34,9 @@ unsigned char* get_message(int* fd, unsigned char* msg){
 	unsigned char* only_data;
 	FILE * created_file;
 		readed_msg = LLREAD(fd, &length);
+		if(readed_msg == NULL || strcmp("finish",readed_msg) == 0){
+			return readed_msg;
+		}
 	int i=0;
 	for(;i<length;i++){
 		printf("MSG:%x\n",readed_msg[i]);
@@ -45,17 +51,12 @@ unsigned char* get_message(int* fd, unsigned char* msg){
 			handle_writefile(created_file,only_data,length);
 			break;
 		case 0x03:
-			//TODO
+			verify_end(readed_msg, created_file);
 			break;
-	}
 
-	/*if(length > 0){
-
-	int i=0;
-	for(i; i<length; i++){
-		printf("MSG: %x\n",msg[i]);
 	}
-	}*/
+	return readed_msg;
+
 }
 
 unsigned char* get_only_data(unsigned char* readed_msg, int* length){
@@ -71,14 +72,41 @@ unsigned char* get_only_data(unsigned char* readed_msg, int* length){
 }
 
 
+int verify_end(unsigned char* msg, FILE* fp){
+	int i=0;
+	int j=0;
+	unsigned char file_size[4];
+	int file_size_size = msg[2];
+	int file_size_total;
+	int real_filesize;
+
+	for(i; i<file_size_size; i++){
+		file_size[i] = msg[i+3];
+	}
+	file_size_total = (file_size[0] <<24) | (file_size[1] << 16) | (file_size[2] << 8) | (file_size[3]);
+
+	if(file_size_total == filesize_total){
+		if(get_file_size(fp,&real_filesize) != 1){
+			if(file_size_total == real_filesize){
+				printf("Received file size is correct\n");
+				return TRUE;
+			}
+			else{
+				printf("Received file is probably corrupted\n");
+				return FALSE;
+			}
+		}
+	}
+
+}
+
+
 FILE* start_message(unsigned char* msg){
 
 	int i=0;
 	int j=0;
 	unsigned char filesize[4];
-	unsigned char* filename;
 	int filename_size;
-	int filesize_total;
 	if(msg[1] == 0x00){
 		int filesize_size = msg[2];
 		for(i; i<filesize_size; i++){
@@ -164,6 +192,7 @@ int main(int argc, char** argv){
 				{
 					return 1;
 				}
+				printf("TAMANHO DO ENVIAR%d\n",filesize);
 				int i=0;
 				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
 				for(;i < startpacket_size;i++){
@@ -174,6 +203,7 @@ int main(int argc, char** argv){
 				printf("IS START: %d\n", is_start);
 				handle_readfile(fileToSend,fd,128);
 				printf("FINISH FILE IS GOING TO LAST PACKET\n");
+				is_start = TRUE;
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
 				i=0;
 				for(;i < endpacket_size;i++){
@@ -182,25 +212,20 @@ int main(int argc, char** argv){
 				is_start=TRUE;
 				send_message(&fd,end_packet,endpacket_size);
 
-				unsigned char* message = (unsigned char*) malloc(9*sizeof(unsigned char));
-				message[0] = 0x48;
-				message[1] = 0x45;
-				message[2] = 0x4c;
-				message[3] = 0x4c;
-				message[4] = 0x4F;
-				message[5] = 0x00;
-				message[6] = 0x48;
-				message[7] = 0x7e;
-				message[8] = 0x7d;
-				int length = 9;
-				/*send_message(&fd, message, length);*/
+				LLCLOSE(&fd,WRITER);
+
+
 			}
 			else if(strcmp("r", argv[2])==0){
 				unsigned char* read_msg;
 				unsigned char* msg;
 				do{
 					msg = get_message(&fd, read_msg);
-				}while(msg != NULL );
+					if(msg == NULL)
+					{
+						msg = "null";
+					}
+				}while(strcmp("finish",msg) != 0);
 
 			}
 			/*
@@ -232,7 +257,6 @@ int main(int argc, char** argv){
 			else{
 				exit(-1);
 			}*/
-			LLCLOSE(&fd);
 	}else
 	{
 		printf("Error opening serial port\n");
@@ -243,7 +267,7 @@ int main(int argc, char** argv){
 
 
 int get_file_size(FILE *ptr_myfile, int* filesize){
-	struct stat buf;
+	/*struct stat buf;
 	int fileDescriptor = fileno(ptr_myfile);
 
 	if(fstat(fileDescriptor,&buf) < 0){
@@ -254,6 +278,11 @@ int get_file_size(FILE *ptr_myfile, int* filesize){
 	}
 
 	*filesize =  buf.st_size;
+	return 0;*/
+
+	fseek(ptr_myfile, 0L, SEEK_END);
+	*filesize = ftell(ptr_myfile);
+	fseek(ptr_myfile, 0L, SEEK_SET);
 	return 0;
 
 }
@@ -262,7 +291,7 @@ int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,i
 {
 	int length_filename = 11;
 
-	unsigned char * filesize_char[4];
+	unsigned char filesize_char[4];
 	filesize_char[0] = (filesize >> 24) & 0xFF;
 	filesize_char[1] = (filesize >> 16) & 0xFF;
 	filesize_char[2] = (filesize >> 8) & 0xFF;
@@ -317,6 +346,7 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 		res = fread(data,sizeof(unsigned char),sizetoread,fp);
 		if(res > 0)
 		{
+			printf("RES: %d\n", res);
 			//handle_writefile(newfile,data,sizetoread);
 			send_message(&port,data,res);
 			printf("GO FOR NEXT PACKAGE\n");
@@ -326,6 +356,7 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 
 	}
 	printf("END FILE\n");
+
 }
 
 void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){
