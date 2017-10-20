@@ -12,40 +12,45 @@
 int is_start = FALSE;
 unsigned char* filename;
 int filesize_total;
+FILE * created_file;
 
 int send_message(int* fd, unsigned char* msg, int length){
 	printf("SEND MESSAGE RRES\n");
+	int res;
 	if(is_start == FALSE){
 		unsigned char* data_package = data_package_constructor(msg, &length);
-		LLWRITE(fd, data_package, &length);
+		res= LLWRITE(fd, data_package, &length);
+		printf("RES LLWIRTE: %d\n", res);
 
 	}
 	else{
 		is_start= FALSE;
-		LLWRITE(fd, msg, &length);
+		res = LLWRITE(fd, msg, &length);
+		
 	}
+
+	if (res == FALSE){
+		
+		return FALSE;
+	}
+
+	return TRUE;
 
 }
 
 
-unsigned char* get_message(int* fd, unsigned char* msg){
+unsigned char* get_message(int* fd){
 	int length;
 	unsigned char* readed_msg;
 	unsigned char* only_data;
-	FILE * created_file;
 		readed_msg = LLREAD(fd, &length);
 		if(readed_msg == NULL || strcmp("finish",readed_msg) == 0){
 			return readed_msg;
 		}
-	int i=0;
-	for(;i<length;i++){
-		printf("MSG:%x\n",readed_msg[i]);
-	}
-
 	switch(readed_msg[0]){
 		case 0x02:
-			created_file = start_message(readed_msg);
-		break;
+			start_message(readed_msg);
+			break;
 		case 0x01:
 			only_data = get_only_data(readed_msg, &length);
 			handle_writefile(created_file,only_data,length);
@@ -55,6 +60,8 @@ unsigned char* get_message(int* fd, unsigned char* msg){
 			break;
 
 	}
+	
+
 	return readed_msg;
 
 }
@@ -101,7 +108,7 @@ int verify_end(unsigned char* msg, FILE* fp){
 }
 
 
-FILE* start_message(unsigned char* msg){
+void start_message(unsigned char* msg){
 
 	int i=0;
 	int j=0;
@@ -129,9 +136,8 @@ FILE* start_message(unsigned char* msg){
 	for(i; i<filename_size; i++){
 		printf("FILENAME: %c\n", filename[i]);
 	}
-	FILE* pFile;
-	pFile = fopen(filename,"wb");
-	return pFile;
+
+	created_file = fopen(filename,"wb");
 
 }
 
@@ -199,7 +205,10 @@ int main(int argc, char** argv){
 					printf("Trama Start: %x\n",start_packet[i]);
 				}
 				is_start = TRUE;
-				send_message(&fd,start_packet,startpacket_size);
+				if (send_message(&fd,start_packet,startpacket_size) == FALSE){
+					LLCLOSE(&fd, -1);
+				}
+
 				printf("IS START: %d\n", is_start);
 				handle_readfile(fileToSend,fd,128);
 				printf("FINISH FILE IS GOING TO LAST PACKET\n");
@@ -210,17 +219,19 @@ int main(int argc, char** argv){
 					printf("Trama END: %x\n",end_packet[i]);
 				}
 				is_start=TRUE;
-				send_message(&fd,end_packet,endpacket_size);
+				if(send_message(&fd,end_packet,endpacket_size) == FALSE){
+					LLCLOSE(&fd, -1);
+				}
 
 				LLCLOSE(&fd,WRITER);
 
 
 			}
 			else if(strcmp("r", argv[2])==0){
-				unsigned char* read_msg;
 				unsigned char* msg;
 				do{
-					msg = get_message(&fd, read_msg);
+					msg = get_message(&fd);
+					
 					if(msg == NULL)
 					{
 						msg = "null";
@@ -348,7 +359,10 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 		{
 			printf("RES: %d\n", res);
 			//handle_writefile(newfile,data,sizetoread);
-			send_message(&port,data,res);
+			if(send_message(&port,data,res) == FALSE){
+				LLCLOSE(&port, -1);
+				exit(-1);
+			}
 			printf("GO FOR NEXT PACKAGE\n");
 		}
 		if(feof(fp))

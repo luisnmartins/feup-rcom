@@ -27,11 +27,11 @@
 
 int send_message(int* fd, unsigned char* msg, int length);
 unsigned char* get_only_data(unsigned char* readed_msg, int* length);
-unsigned char* get_message(int* fd, unsigned char* msg);
+unsigned char* get_message(int* fd);
 unsigned char* data_package_constructor(unsigned char* msg, int* length);
 int get_file_size(FILE *ptr_myfile, int* filesize);
 int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type);
-FILE* start_message(unsigned char* msg);
+void start_message(unsigned char* msg);
 void handle_readfile(FILE*fp,int port,int sizetoread);
 void handle_writefile(FILE * fp,unsigned char * data,int sizetowrite);
 int verify_end(unsigned char* msg, FILE* fp);

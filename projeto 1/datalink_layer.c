@@ -425,41 +425,48 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 	flag_error=0;
 
 	while(flag_attempts < 4 && flag_alarm == 1){
-			int res = write(*fd, full_message, *length);
-			printf("%d bytes written\n", res);
+		int res = write(*fd, full_message, *length);
+		printf("%d bytes written\n", res);
 
-			alarm(3);
-			flag_alarm=0;
-			printf("get response NOW");
+		alarm(3);
+		flag_alarm=0;
 		// Wait for response signal.
-			while(STOP == FALSE && flag_alarm == 0){
-					res = read(*fd,&elem,1);
-					if(res >0) {
-							trama_length++;
-							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
+		while(STOP == FALSE && flag_alarm == 0){
+			res = read(*fd,&elem,1);
+			if(res >0) {
+				trama_length++;
+				state_machine(elem, &state, trama, &trama_length, TRAMA_S);
 
-					}
-			}
-
-			int i=0;
-			for(i; i<trama_length; i++){
-				printf("RESP: %x\n", trama[i]);
-			}
-
-			if (STOP == TRUE) {
-				if(trama[2] == control_values[control_value+4]){
-					printf("ERROR CONTROL VALUE\n");
-					flag_alarm=1;
-					flag_error=0;
-					STOP = FALSE;
-					state = S0;
-					trama_length = 0;
-				}
 			}
 		}
-		control_value = control_value^1;
-		printf("PASS CONTROL VALUE\n");
-		return TRUE;
+
+		int i=0;
+		for(i; i<trama_length; i++){
+			printf("RESP: %x\n", trama[i]);
+		}
+
+		if (STOP == TRUE) {
+			if(trama[2] == control_values[control_value+4]){
+				printf("ERROR CONTROL VALUE\n");
+				flag_alarm=1;
+				flag_attempts = 1;
+				flag_error=0;
+				STOP = FALSE;
+				state = S0;
+				trama_length = 0;
+			}
+		}
+	}
+
+
+	if (flag_error == 1){
+		printf("LLWRITE FLAG ERROR\n");
+		return FALSE;
+	}
+	
+	control_value = control_value^1;
+	printf("PASS CONTROL VALUE\n");
+	return TRUE;
 }
 
 
@@ -472,14 +479,15 @@ unsigned char* LLREAD(int* fd, int* length){
 	STOP = FALSE;
 	unsigned char* msg= (unsigned char*) malloc(1);
 	while (STOP==FALSE) {       /* loop for input */
-			res = read(*fd,&elem,1);
-			if(res>0){
-				*length = *length+1;
-				msg = realloc(msg, *length);
-				state_machine(elem, &state, msg, length, TRAMA_I);
-			}
+		res = read(*fd,&elem,1);
+		
+		if(res>0){
+			*length = *length+1;
+			msg = realloc(msg, *length);
+			state_machine(elem, &state, msg, length, TRAMA_I);
+		}
 	}
-
+	printf("FINISH READ %x\n", res);
 	if(flag_error == 1){
 		printf("REJ BCC1:");
 		send_response(fd, REJ, msg[2]);
@@ -543,11 +551,12 @@ int send_response(int* fd, unsigned int type, unsigned char c){
 	}
 	response[3] = response[1]^response[2];
 	int i=0;
-for(i; i<5; i++){
+	for(i; i<5; i++){
 	printf("RESP: %x\n", response[i]);
-}
+	}
 
-	write(*fd, response, 5);
+	int written_val = write(*fd, response, 5);
+	printf("RESPONSE SNED SIZE: %d\n", written_val);
 
 	return bool_val^1;
 }
