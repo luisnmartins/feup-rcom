@@ -15,12 +15,13 @@ int send_message(int* fd, unsigned char* msg, int length){
 	if(is_start == FALSE){
 		unsigned char* data_package = data_package_constructor(msg, &length);
 		LLWRITE(fd, data_package, &length);
+
 	}
 	else{
 		is_start= FALSE;
 		LLWRITE(fd, msg, &length);
 	}
-	
+
 }
 
 
@@ -44,7 +45,7 @@ unsigned char* get_message(int* fd, unsigned char* msg){
 			handle_writefile(created_file,only_data,length);
 			break;
 		case 0x03:
-			//TODO manda disconnect;
+			//TODO
 			break;
 	}
 
@@ -90,10 +91,11 @@ FILE* start_message(unsigned char* msg){
 		i++;
 		filename_size = msg[i];
 		i++;
-		filename = (unsigned char*) malloc (filename_size);
+		filename = (unsigned char*) malloc (filename_size+1);
 		for(j; j<filename_size; j++,i++){
 			filename[j] = msg[i];
 		}
+		filename[filename_size] = '\0';
 	}
 	i=0;
 	for(i; i<filename_size; i++){
@@ -156,19 +158,27 @@ int main(int argc, char** argv){
 				 int filesize ;
 				unsigned char * filename = "pinguim.gif";
 				unsigned char * start_packet = malloc(5);
-				unsigned char * end_packet;
+				unsigned char * end_packet = malloc(1);
 				FILE *fileToSend = fopen(filename,"rb");
 				if(get_file_size(fileToSend,&filesize) == 1)
 				{
 					return 1;
 				}
+				int i=0;
 				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
-				
+				for(;i < startpacket_size;i++){
+					printf("Trama Start: %x\n",start_packet[i]);
+				}
 				is_start = TRUE;
 				send_message(&fd,start_packet,startpacket_size);
 				printf("IS START: %d\n", is_start);
 				handle_readfile(fileToSend,fd,128);
+				printf("FINISH FILE IS GOING TO LAST PACKET\n");
 				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
+				i=0;
+				for(;i < endpacket_size;i++){
+					printf("Trama END: %x\n",end_packet[i]);
+				}
 				is_start=TRUE;
 				send_message(&fd,end_packet,endpacket_size);
 
@@ -190,7 +200,7 @@ int main(int argc, char** argv){
 				unsigned char* msg;
 				do{
 					msg = get_message(&fd, read_msg);
-				}while(msg != NULL);
+				}while(msg != NULL );
 
 			}
 			/*
@@ -300,18 +310,22 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 	//FILE * newfile = fopen("penguin.gif","wb");
 
 	fseek(fp,0,SEEK_SET);
-	while(!feof(fp))
+	while(TRUE)
 	{
+
 		int res = 0;
 		res = fread(data,sizeof(unsigned char),sizetoread,fp);
 		if(res > 0)
 		{
-			
 			//handle_writefile(newfile,data,sizetoread);
 			send_message(&port,data,res);
+			printf("GO FOR NEXT PACKAGE\n");
 		}
+		if(feof(fp))
+			break;
 
 	}
+	printf("END FILE\n");
 }
 
 void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){

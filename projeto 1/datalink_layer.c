@@ -430,8 +430,8 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 
 			alarm(3);
 			flag_alarm=0;
-
-		// Wait for UA signal.
+			printf("get response NOW");
+		// Wait for response signal.
 			while(STOP == FALSE && flag_alarm == 0){
 					res = read(*fd,&elem,1);
 					if(res >0) {
@@ -440,14 +440,15 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 
 					}
 			}
+
 			int i=0;
 			for(i; i<trama_length; i++){
 				printf("RESP: %x\n", trama[i]);
 			}
 
 			if (STOP == TRUE) {
-				printf("ENTROU\n");
 				if(trama[2] == control_values[control_value+4]){
+					printf("ERROR CONTROL VALUE\n");
 					flag_alarm=1;
 					flag_error=0;
 					STOP = FALSE;
@@ -457,6 +458,7 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 			}
 		}
 		control_value = control_value^1;
+		printf("PASS CONTROL VALUE\n");
 		return TRUE;
 }
 
