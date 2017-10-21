@@ -26,11 +26,11 @@ int send_message(int* fd, unsigned char* msg, int length){
 	else{
 		is_start= FALSE;
 		res = LLWRITE(fd, msg, &length);
-		
+
 	}
 
 	if (res == FALSE){
-		
+
 		return FALSE;
 	}
 
@@ -60,7 +60,7 @@ unsigned char* get_message(int* fd){
 			break;
 
 	}
-	
+
 
 	return readed_msg;
 
@@ -231,9 +231,10 @@ int main(int argc, char** argv){
 				unsigned char* msg;
 				do{
 					msg = get_message(&fd);
-					
+
 					if(msg == NULL)
 					{
+
 						msg = "null";
 					}
 				}while(strcmp("finish",msg) != 0);
