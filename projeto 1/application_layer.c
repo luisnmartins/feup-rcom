@@ -44,7 +44,7 @@ unsigned char* get_message(int* fd){
 	unsigned char* readed_msg;
 	unsigned char* only_data;
 		readed_msg = LLREAD(fd, &length);
-		if(readed_msg == NULL || strcmp("finish",readed_msg) == 0){
+		if(readed_msg == NULL || readed_msg[0] == DISC){
 			return readed_msg;
 		}
 	switch(readed_msg[0]){
@@ -70,7 +70,7 @@ unsigned char* get_only_data(unsigned char* readed_msg, int* length){
 	int i=4;
 	int j=0;
 	unsigned char* only_data = (unsigned char*) malloc(*length-4);
-	for(i; i<*length; i++, j++){
+	for(; i<*length; i++, j++){
 			only_data[j] = readed_msg[i];
 	}
 	*length = *length-4;
@@ -81,13 +81,12 @@ unsigned char* get_only_data(unsigned char* readed_msg, int* length){
 
 int verify_end(unsigned char* msg, FILE* fp){
 	int i=0;
-	int j=0;
 	unsigned char file_size[4];
 	int file_size_size = msg[2];
 	int file_size_total;
 	int real_filesize;
 
-	for(i; i<file_size_size; i++){
+	for(; i<file_size_size; i++){
 		file_size[i] = msg[i+3];
 	}
 	file_size_total = (file_size[0] <<24) | (file_size[1] << 16) | (file_size[2] << 8) | (file_size[3]);
@@ -104,7 +103,7 @@ int verify_end(unsigned char* msg, FILE* fp){
 			}
 		}
 	}
-
+	return FALSE;
 }
 
 
@@ -116,7 +115,7 @@ void start_message(unsigned char* msg){
 	int filename_size;
 	if(msg[1] == 0x00){
 		int filesize_size = msg[2];
-		for(i; i<filesize_size; i++){
+		for(; i<filesize_size; i++){
 			filesize[i] = msg[i+3];
 		}
 		filesize_total = (filesize[0] <<24) | (filesize[1] << 16) | (filesize[2] << 8) | (filesize[3]);
@@ -127,17 +126,17 @@ void start_message(unsigned char* msg){
 		filename_size = msg[i];
 		i++;
 		filename = (unsigned char*) malloc (filename_size+1);
-		for(j; j<filename_size; j++,i++){
+		for(; j<filename_size; j++,i++){
 			filename[j] = msg[i];
 		}
 		filename[filename_size] = '\0';
 	}
 	i=0;
-	for(i; i<filename_size; i++){
+	for(; i<filename_size; i++){
 		printf("FILENAME: %c\n", filename[i]);
 	}
 
-	created_file = fopen(filename,"wb");
+	created_file = fopen((char*)filename,"wb");
 
 }
 
@@ -157,7 +156,7 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 		data_package[3] = l1;
 
 		int i=0;
-		for(i; i<*length; i++){
+		for(; i<*length; i++){
 			data_package[i+4] = msg[i];
 		}
 
@@ -193,7 +192,7 @@ int main(int argc, char** argv){
 				unsigned char * filename = "pinguim.gif";
 				unsigned char * start_packet = malloc(5);
 				unsigned char * end_packet = malloc(1);
-				FILE *fileToSend = fopen(filename,"rb");
+				FILE *fileToSend = fopen((char*)filename,"rb");
 				if(get_file_size(fileToSend,&filesize) == 1)
 				{
 					return 1;
@@ -229,51 +228,23 @@ int main(int argc, char** argv){
 			}
 			else if(strcmp("r", argv[2])==0){
 				unsigned char* msg;
+				unsigned char null_val[] = {0xAA};
 				do{
 					msg = get_message(&fd);
 
 					if(msg == NULL)
 					{
-
-						msg = "null";
+						msg = null_val;
 					}
-				}while(strcmp("finish",msg) != 0);
+				}while(msg[0] != DISC);
 
 			}
-			/*
-			unsigned char* stuffed_message = byte_stuffing(message, &length);
-			int i=0;
-			for(i; i<length; i++){
-				printf("STUFFED: %x ",stuffed_message[i]);
-			}
-			unsigned char* destuffed_message = byte_destuffing(stuffed_message, &length);
-			i=0;
-			printf("\n\n\n");
-			for(i; i<length; i++){
-				printf("DES: %x ",destuffed_message[i]);*/
-
-
-
-
-
-			/*printf("MENSAGEM C STUFFING: %s\n", message);*/
-			/*
-			byte_destuffing(message);
-			printf("%s\n", message);
-			/*if(strcmp(argv[2], "w") == 0){
-				start_sending_msg(&fd);
-			}
-			else if(strcmp(argv[2], "r") == 0){
-				read_start_msg(&fd);
-			}
-			else{
-				exit(-1);
-			}*/
 	}else
 	{
 		printf("Error opening serial port\n");
 		return 1;
 	}
+	return 0;
 
 }
 
@@ -320,7 +291,7 @@ int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,i
 	start_packet[2] = length_filesize;
 	int i = 0;
 	int j = 3;
-	for(i; i < length_filesize; i++,j++){
+	for(; i < length_filesize; i++,j++){
 		start_packet[j] = filesize_char[i];
 	}
 

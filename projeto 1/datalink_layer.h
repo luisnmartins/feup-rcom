@@ -51,7 +51,6 @@ void set_serial_port(char* port, int* fd);
 int close_serial_port(int* fd);
 int LLOPEN(char* port, char* mode);
 unsigned char* create_package(unsigned char* msg, int* length);
-int get_package(int* fd, unsigned char* msg);
 int get_result(int *fd);
 unsigned char* verify_bcc2(unsigned char* control_message, int* length);
 unsigned char* remove_head_msg_connection(unsigned char* msg, int* length);
