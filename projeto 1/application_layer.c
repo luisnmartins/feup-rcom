@@ -187,12 +187,20 @@ int main(int argc, char** argv){
 
 	if(fd>0){
 			if(strcmp("w", argv[2])==0){
-
+				if(argv[3] == NULL){
+					printf("You need to specify the file to send\n");
+					exit(-1);
+				}
 				 int filesize ;
-				unsigned char * filename = "pinguim.gif";
+				unsigned char * filename = (unsigned char *) argv[3];
 				unsigned char * start_packet = malloc(5);
 				unsigned char * end_packet = malloc(1);
 				FILE *fileToSend = fopen((char*)filename,"rb");
+				if(fileToSend == NULL)
+				{
+					printf("invalid file!\n");
+					exit(-1);
+				}
 				if(get_file_size(fileToSend,&filesize) == 1)
 				{
 					return 1;
@@ -272,7 +280,7 @@ int get_file_size(FILE *ptr_myfile, int* filesize){
 
 int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type)
 {
-	int length_filename = 11;
+	int length_filename = strlen((char*)filename);
 
 	unsigned char filesize_char[4];
 	filesize_char[0] = (filesize >> 24) & 0xFF;
@@ -350,3 +358,6 @@ void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){
 	fseek(fp,0,SEEK_END);
 	fwrite(data,sizeof(unsigned char),sizetowrite,fp);
 }
+
+
+
