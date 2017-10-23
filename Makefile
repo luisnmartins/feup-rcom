@@ -1,2 +1,3 @@
 make:
-	gcc -o app datalink_layer.c application_layer.c 
+	rm -f app.o
+	gcc -o app -Wall datalink_layer.c application_layer.c
