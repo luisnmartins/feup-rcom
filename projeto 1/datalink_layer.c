@@ -31,9 +31,6 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 				*state = S1;
 				trama[*length-1] = c;
 			}
-			else{
-				*state = SESC;
-			}
 			break;
 		case S1:
 			if(c != FLAG){
@@ -50,8 +47,8 @@ void state_machine(unsigned char c, int* state, unsigned char* trama, int* lengt
 			}
 			else
 			{
-				*state = S0;
-				*length = 0;
+				*length = 1;
+				trama[*length-1] = c;
 			}
 			break;
 		case S2:
