@@ -19,22 +19,34 @@
 #define TRUE 1
 #define DATA_CONTROL 1
 
-/*struct data_info{
-  int n;
-  int length;
-  unsigned char* data;
-}*/
 
-int send_message(int* fd, unsigned char* msg, int length);
+#define MAXSIZELINK 7 //2*1(bcc2) + 5 other element trama datalink
+
+#define START_PACKET_TYPE 1
+#define END_PACKET_TYPE 0
+
+typedef struct {
+  int filesize;
+  char* filename;
+  FILE* fp;
+}file_info;
+
+typedef struct{
+  int file_descriptor;
+  char* status;
+  int size_to_read;
+}application_layer;
+
+int send_message(unsigned char* msg, int length);
 unsigned char* get_only_data(unsigned char* readed_msg, int* length);
-unsigned char* get_message(int* fd);
+unsigned char* get_message();
 unsigned char* data_package_constructor(unsigned char* msg, int* length);
-int get_file_size(FILE *ptr_myfile, int* filesize);
-int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type);
+int get_file_size();
+int create_STARTEND_packet(unsigned char* packet, int type);
 void start_message(unsigned char* msg);
-void handle_readfile(FILE*fp,int port,int sizetoread);
-void handle_writefile(FILE * fp,unsigned char * data,int sizetowrite);
-int verify_end(unsigned char* msg, FILE* fp);
+void handle_readfile();
+void handle_writefile(unsigned char * data,int sizetowrite);
+int verify_end(unsigned char* msg);
 int main(int argc, char** argv);
 
 #endif

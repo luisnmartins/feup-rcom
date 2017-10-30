@@ -7,6 +7,7 @@ volatile unsigned char flag_alarm=1;
 volatile unsigned char flag_error=0;
 const unsigned char control_values[] = { 0x00, 0x40, 0x05, 0x85, 0x01, 0x81 };
 struct termios oldtio,newtio;
+struct timespec clockStart,clockEnd;
 volatile unsigned char control_value=0;
 volatile unsigned char duplicate=FALSE;
 
@@ -185,6 +186,9 @@ void set_serial_port(char* port, int* fd){
 
     tcflush(*fd, TCIOFLUSH);
 
+	//start clock
+	clock_gettime(CLOCK_REALTIME,&clockStart);
+
     if ( tcsetattr(*fd,TCSANOW,&newtio) == -1) {
       perror("tcsetattr");
       exit(-1);
@@ -195,14 +199,14 @@ void set_serial_port(char* port, int* fd){
 }
 
 
-int close_serial_port(int* fd){
+int close_serial_port(int fd){
 
-	if ( tcsetattr(*fd,TCSANOW,&oldtio) == -1) {
+	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
       perror("tcsetattr");
       exit(-1);
     }
 
-    close(*fd);
+    close(fd);
     return 0;
 }
 
@@ -225,7 +229,7 @@ int LLOPEN(char* port, char* mode){
 	return fd;
   }
   else{
-		LLCLOSE(&fd, -1);
+		LLCLOSE(fd, -1);
 	return -1;
   }
 
@@ -243,8 +247,11 @@ unsigned char* create_package(unsigned char* msg, int* length){
 	new_message[*length] = bcc2;
 		*length = *length+1;
 	i=0;
+	printf("DEU \n");
 	unsigned char* stuffed_message = byte_stuffing(new_message, length);
+
 	unsigned char* control_message = add_control_message(stuffed_message, length);
+
 	return control_message;
 }
 
@@ -287,20 +294,21 @@ unsigned char* remove_head_msg_connection(unsigned char* msg, int* length){
 }
 
 
-unsigned char* add_control_message(unsigned char* msg, int* length){
-	*length = *length+5;
-	unsigned char* full_message = (unsigned char*) malloc(*length);
+unsigned char* add_control_message(unsigned char* stuffed_message_control, int* length){
+	unsigned char* full_message = (unsigned char*) malloc(*length+5);
 	int i=0;
 	full_message[0] = FLAG;
 	full_message[1] = ADDR;
 	full_message[2] = control_values[control_value];
-	printf("CONTROL %x\n", full_message[2]);
 	full_message[3] = full_message[1]^full_message[2];
 	for(; i<*length; i++){
-		full_message[i+4] = msg[i];
+		full_message[i+4] = stuffed_message_control[i];
 	}
-	full_message[*length-1] = FLAG;
-	free(msg);
+	full_message[*length+4] = FLAG;
+	*length = *length+5;
+
+	free(stuffed_message_control);
+
 	return full_message;
 }
 
@@ -309,42 +317,50 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 	unsigned char* str;
 	int i=0;
 	int j=0;
-	int new_length = *length;
-	str = (unsigned char *) malloc(*length);
-
+	unsigned int array_length = *length;
+	str = (unsigned char *) malloc(array_length);
 	for(; i < *length; i++, j++){
+
+		if(j >= array_length){
+			array_length = array_length+(array_length/2);
+			str = (unsigned char*) realloc(str, array_length);
+
+		}
 		if(msg[i] ==  0x7e){
-			str = (unsigned char *) realloc(str, new_length+1);
 			str[j] = 0x7d;
 			str[j+1] = 0x5e;
-			new_length++;
 			j++;
 		}
 		else if(msg[i] == 0x7d){
-			str = (unsigned char *) realloc(str, new_length+1);
 			str[j] = 0x7d;
 			str[j+1]= 0x5d;
-			new_length++;
 			j++;
 		}
 		else{
 			str[j] = msg[i];
 		}
 	}
-	*length = new_length;
+	*length = j;
 	free(msg);
+	i=0;
+	for(; i<*length; i++){
+		printf("STUFFED: %x\n", str[i]);
+	}
 	return str;
 }
 
 unsigned char* byte_destuffing(unsigned char* msg, int* length){
-	unsigned char* str;
-	str = (unsigned char*) malloc(1);
+	unsigned int array_length = 133;
+	unsigned char* str = (unsigned char*) malloc(array_length);
 	int i=0;
 	int new_length = 0;
 
 	for(; i<*length; i++){
 		new_length++;
-		str = (unsigned char *) realloc(str, new_length);
+		if(new_length >= array_length){
+			array_length = array_length+ (array_length/2);
+			str = (unsigned char *) realloc(str, array_length);
+		}
 		if(msg[i] == 0x7d){
 			if(msg[i+1] == 0x5e){
 				str[new_length-1] = 0x7e;
@@ -367,7 +383,7 @@ unsigned char* byte_destuffing(unsigned char* msg, int* length){
 
 
 
-int LLWRITE(int* fd, unsigned char* msg, int* length){
+int LLWRITE(int fd, unsigned char* msg, int* length){
 	unsigned char* full_message= create_package(msg, length);
 	if(*length<0)
 		return FALSE;
@@ -384,14 +400,14 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 	flag_error=0;
 
 	while(flag_attempts < 4 && flag_alarm == 1){
-		res = write(*fd, full_message, *length);
+		res = write(fd, full_message, *length);
 		printf("%d bytes written\n", res);
 
 		alarm(3);
 		flag_alarm=0;
 		// Wait for response signal.
 		while(STOP == FALSE && flag_alarm == 0){
-			res = read(*fd,&elem,1);
+			res = read(fd,&elem,1);
 			if(res >0) {
 				trama_length++;
 				state_machine(elem, &state, trama, &trama_length, TRAMA_S);
@@ -426,21 +442,25 @@ int LLWRITE(int* fd, unsigned char* msg, int* length){
 }
 
 
-unsigned char* LLREAD(int* fd, int* length){
+unsigned char* LLREAD(int fd, int* length){
 	unsigned char elem;
 	int state = S0;
 	int res;
 	*length=0;
 	flag_error = 0;
 	STOP = FALSE;
-	unsigned char* msg= (unsigned char*) malloc(1);
+	unsigned int msg_array_length = 138;
+	unsigned char* msg= (unsigned char*) malloc(msg_array_length);
 	unsigned char* finish = (unsigned char*) malloc(1);
 	finish[0] = DISC;
-	while (STOP==FALSE) {       /* loop for input */
-		res = read(*fd,&elem,1);
+	while (STOP==FALSE) {       /* loop for read info */
+		res = read(fd,&elem,1);
 		if(res>0){
 			*length = *length+1;
-			msg = realloc(msg, *length);
+			if(*length >= msg_array_length){
+				msg_array_length = msg_array_length+(msg_array_length/2);
+				msg = realloc(msg, msg_array_length);
+			}
 			state_machine(elem, &state, msg, length, TRAMA_I);
 		}
 	}
@@ -484,7 +504,7 @@ unsigned char* LLREAD(int* fd, int* length){
 
 }
 
-int send_response(int* fd, unsigned int type, unsigned char c){
+int send_response(int fd, unsigned int type, unsigned char c){
 	unsigned char bool_val;
 	unsigned char response[5];
 	response[0] = FLAG;
@@ -507,13 +527,13 @@ int send_response(int* fd, unsigned int type, unsigned char c){
 	}
 	response[3] = response[1]^response[2];
 
- 	write(*fd, response, 5);
+ 	write(fd, response, 5);
 
 	return bool_val^1;
 }
 
 
-void LLCLOSE(int* fd, int type){
+void LLCLOSE(int fd, int type){
 	unsigned char disc[5] = {FLAG, ADDR, DISC, ADDR^DISC, FLAG};
 	unsigned char * received;
 	if(type == READER){
@@ -536,14 +556,14 @@ void LLCLOSE(int* fd, int type){
 			printf("Problem receiving final DISC\n");
 		}
 		unsigned char UA[5] = {FLAG, ADDR, CR, BCCR, FLAG};
-		write(*fd,UA,5);
+		write(fd,UA,5);
 		sleep(1);
 	}
 
 	close_serial_port(fd);
 }
 
-unsigned char* reader_disc(int*fd,unsigned char* disc){
+unsigned char* reader_disc(int fd,unsigned char* disc){
 	 flag_attempts=1;
 	 flag_alarm=1;
 	 flag_error=0;
@@ -556,7 +576,7 @@ unsigned char* reader_disc(int*fd,unsigned char* disc){
 
 	while(flag_attempts < 4 && flag_alarm == 1){
 			printf("TRY: %x\n", flag_attempts);
-		res = write(*fd,disc,5);
+		res = write(fd,disc,5);
 
 			alarm(3);
 			flag_alarm=0;
@@ -564,7 +584,7 @@ unsigned char* reader_disc(int*fd,unsigned char* disc){
 
 
 			while(STOP == FALSE && flag_alarm == 0){
-			res = read(*fd,&elem,1);
+			res = read(fd,&elem,1);
 					if(res >0) {
 						trama_length++;
 							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
@@ -576,4 +596,21 @@ unsigned char* reader_disc(int*fd,unsigned char* disc){
 
 	printf("DISC0 %x\n",trama[0]);
 	return trama;
+}
+
+
+unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type){
+	unsigned char * result = (unsigned char*) malloc(sizePacket);
+	int i;
+	memcpy(result,packet,sizePacket);
+	int random = (rand() % 100) + 1;
+	if(random <= ERRORPERCENTAGE){
+		if(type == ERROR_BCC2)
+		i = (rand() % (sizePacket-5))+4;
+		else if(type == ERROR_BCC1)
+		i = (rand() % 2) + 1;
+		unsigned char letter = (unsigned char) ('A' + (rand() % 26));
+		result[i] = letter;
+	}
+	return result;
 }

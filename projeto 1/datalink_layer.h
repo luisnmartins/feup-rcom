@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -43,25 +44,31 @@
 #define TRAMA_S 0
 #define TRAMA_I 1
 
+#define ERROR_BCC1 1
+#define ERROR_BCC2 2
+
+#define ERRORPERCENTAGE 15
+
 void alarm_handler();
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type);
 int set_writer(int* fd);
 int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
-int close_serial_port(int* fd);
+int close_serial_port(int fd);
 int LLOPEN(char* port, char* mode);
 unsigned char* create_package(unsigned char* msg, int* length);
 int get_result(int *fd);
 unsigned char* verify_bcc2(unsigned char* control_message, int* length);
 unsigned char* remove_head_msg_connection(unsigned char* msg, int* length);
-unsigned char* add_control_message(unsigned char* msg, int* length);
+unsigned char* add_control_message(unsigned char* stuffed_message_control, int* length);
 unsigned char* byte_stuffing(unsigned char* msg, int* length);
 unsigned char* byte_destuffing(unsigned char* msg, int* length);
-int LLWRITE(int* fd, unsigned char* msg, int* length);
-int send_response(int* fd, unsigned int type, unsigned char c);
-unsigned char* LLREAD(int* fd, int* length);
-void LLCLOSE(int* fd, int type);
-unsigned char* reader_disc(int*fd,unsigned char* disc);
+int LLWRITE(int fd, unsigned char* msg, int* length);
+int send_response(int fd, unsigned int type, unsigned char c);
+unsigned char* LLREAD(int fd, int* length);
+void LLCLOSE(int fd, int type);
+unsigned char* reader_disc(int fd,unsigned char* disc);
+unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type);
 
 
 #endif

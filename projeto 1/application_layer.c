@@ -1,32 +1,23 @@
 #include "application_layer.h"
 
-/*int start_sending_msg(int *fd){
-
-	char t_msg = 0x00;
-	char l_msg = 0x01;
-	char msg_size = 0x06;
-	char i_start[] = {C_START, t_msg, l_msg, msg_size};
-
-}*/
 
 int is_start = FALSE;
-unsigned char* filename;
-int filesize_total;
-FILE * created_file;
+static file_info file;
+static application_layer app_info;
 
-int send_message(int* fd, unsigned char* msg, int length){
-	printf("SEND MESSAGE RRES\n");
+
+int send_message(unsigned char* msg, int length){
 	int res;
 	if(is_start == FALSE){
 		unsigned char* data_package = data_package_constructor(msg, &length);
-		res= LLWRITE(fd, data_package, &length);
+		printf("DATA PACKAGE\n");
+		res= LLWRITE(app_info.file_descriptor, data_package, &length);
 		printf("RES LLWIRTE: %d\n", res);
 
 	}
 	else{
 		is_start= FALSE;
-		res = LLWRITE(fd, msg, &length);
-
+		res = LLWRITE(app_info.file_descriptor, msg, &length);
 	}
 
 	if (res == FALSE){
@@ -39,11 +30,11 @@ int send_message(int* fd, unsigned char* msg, int length){
 }
 
 
-unsigned char* get_message(int* fd){
+unsigned char* get_message(){
 	int length;
 	unsigned char* readed_msg;
 	unsigned char* only_data;
-		readed_msg = LLREAD(fd, &length);
+		readed_msg = LLREAD(app_info.file_descriptor, &length);
 		if(readed_msg == NULL || readed_msg[0] == DISC){
 			return readed_msg;
 		}
@@ -53,10 +44,10 @@ unsigned char* get_message(int* fd){
 			break;
 		case 0x01:
 			only_data = get_only_data(readed_msg, &length);
-			handle_writefile(created_file,only_data,length);
+			handle_writefile(only_data,length);
 			break;
 		case 0x03:
-			verify_end(readed_msg, created_file);
+			verify_end(readed_msg);
 			break;
 
 	}
@@ -79,29 +70,24 @@ unsigned char* get_only_data(unsigned char* readed_msg, int* length){
 }
 
 
-int verify_end(unsigned char* msg, FILE* fp){
+int verify_end(unsigned char* msg){
 	int i=0;
 	unsigned char file_size[4];
 	int file_size_size = msg[2];
 	int file_size_total;
-	int real_filesize;
 
 	for(; i<file_size_size; i++){
 		file_size[i] = msg[i+3];
 	}
 	file_size_total = (file_size[0] <<24) | (file_size[1] << 16) | (file_size[2] << 8) | (file_size[3]);
 
-	if(file_size_total == filesize_total){
-		if(get_file_size(fp,&real_filesize) != 1){
-			if(file_size_total == real_filesize){
+	if(file_size_total == file.filesize && file_size_total == get_file_size()){
 				printf("Received file size is correct\n");
 				return TRUE;
-			}
-			else{
+	}
+	else{
 				printf("Received file is probably corrupted\n");
 				return FALSE;
-			}
-		}
 	}
 	return FALSE;
 }
@@ -118,25 +104,25 @@ void start_message(unsigned char* msg){
 		for(; i<filesize_size; i++){
 			filesize[i] = msg[i+3];
 		}
-		filesize_total = (filesize[0] <<24) | (filesize[1] << 16) | (filesize[2] << 8) | (filesize[3]);
+		file.filesize = (filesize[0] <<24) | (filesize[1] << 16) | (filesize[2] << 8) | (filesize[3]);
 	}
 	i += 3;
 	if(msg[i] == 0x01){
 		i++;
 		filename_size = msg[i];
 		i++;
-		filename = (unsigned char*) malloc (filename_size+1);
+		file.filename = (char*) malloc (filename_size+1);
 		for(; j<filename_size; j++,i++){
-			filename[j] = msg[i];
+			file.filename[j] = msg[i];
 		}
-		filename[filename_size] = '\0';
+		file.filename[filename_size] = '\0';
 	}
 	i=0;
 	for(; i<filename_size; i++){
-		printf("FILENAME: %c\n", filename[i]);
+		printf("FILENAME: %c\n", file.filename[i]);
 	}
 
-	created_file = fopen((char*)filename,"wb");
+	file.fp = fopen((char*)file.filename,"wb");
 
 }
 
@@ -180,65 +166,79 @@ int main(int argc, char** argv){
     	printf("Usage:\tinvalid read/write mode. a correct mode (r / w).\n\tex: nserial /dev/ttyS1 r\n");
       exit(1);
     }
+	srand(time(NULL));
 
+	app_info.status = argv[2];
+	app_info.file_descriptor = LLOPEN(argv[1], app_info.status);
 
-  int fd = LLOPEN(argv[1], argv[2]);
-	//int fd = 1;
-
-	if(fd>0){
-			if(strcmp("w", argv[2])==0){
-				if(argv[3] == NULL){
-					printf("You need to specify the file to send\n");
+	if(app_info.file_descriptor>0){
+			if(strcmp("w", app_info.status)==0){
+				if(argv[3] == NULL || argv[4] == NULL){
+					printf("You need to specify the file to send and the size to read\n");
 					exit(-1);
 				}
-				 int filesize ;
-				unsigned char * filename = (unsigned char *) argv[3];
-				unsigned char * start_packet = malloc(5);
-				unsigned char * end_packet = malloc(1);
-				FILE *fileToSend = fopen((char*)filename,"rb");
-				if(fileToSend == NULL)
+
+				file.filename = (char*) argv[3];
+				app_info.size_to_read = atoi(argv[4]);
+				int start_end_max_size;
+				unsigned char* start_packet;
+				unsigned char* end_packet;
+
+				file.fp = fopen((char*)file.filename,"rb");
+				if(file.fp == NULL)
 				{
 					printf("invalid file!\n");
 					exit(-1);
 				}
-				if(get_file_size(fileToSend,&filesize) == 1)
+				if((file.filesize = get_file_size()) == -1)
 				{
-					return 1;
+					return FALSE;
 				}
-				printf("TAMANHO DO ENVIAR%d\n",filesize);
+				start_end_max_size = 2*(strlen(file.filename) + 9 ) + MAXSIZELINK; //max size for start/end package;
+				start_packet = (unsigned char*) malloc(start_end_max_size);
+
+				int start_created_size = create_STARTEND_packet(start_packet, START_PACKET_TYPE);
+
+				if(start_created_size == -1){
+					printf("Error creating start packet\n");
+					exit(-1);
+				}
+
 				int i=0;
-				int startpacket_size = create_STARTEND_packet(start_packet,filename,filesize,1);
-				for(;i < startpacket_size;i++){
+				for(;i < start_created_size;i++){
 					printf("Trama Start: %x\n",start_packet[i]);
 				}
+
 				is_start = TRUE;
-				if (send_message(&fd,start_packet,startpacket_size) == FALSE){
-					LLCLOSE(&fd, -1);
+				if (send_message(start_packet,start_created_size) == FALSE){
+					LLCLOSE(app_info.file_descriptor, -1);
 				}
 
 				printf("IS START: %d\n", is_start);
-				handle_readfile(fileToSend,fd,128);
+				handle_readfile();
 				printf("FINISH FILE IS GOING TO LAST PACKET\n");
+
 				is_start = TRUE;
-				int endpacket_size = create_STARTEND_packet(end_packet,filename,filesize,0);
+				end_packet = (unsigned char*) malloc(start_end_max_size);
+				int endpacket_size = create_STARTEND_packet(end_packet,END_PACKET_TYPE);
 				i=0;
 				for(;i < endpacket_size;i++){
 					printf("Trama END: %x\n",end_packet[i]);
 				}
 				is_start=TRUE;
-				if(send_message(&fd,end_packet,endpacket_size) == FALSE){
-					LLCLOSE(&fd, -1);
+				if(send_message(end_packet,endpacket_size) == FALSE){
+					LLCLOSE(app_info.file_descriptor, -1);
 				}
 
-				LLCLOSE(&fd,WRITER);
+				LLCLOSE(app_info.file_descriptor,WRITER);
 
 
 			}
-			else if(strcmp("r", argv[2])==0){
+			else if(strcmp("r", app_info.status)==0){
 				unsigned char* msg;
 				unsigned char null_val[] = {0xAA};
 				do{
-					msg = get_message(&fd);
+					msg = get_message();
 
 					if(msg == NULL)
 					{
@@ -257,95 +257,90 @@ int main(int argc, char** argv){
 }
 
 
-int get_file_size(FILE *ptr_myfile, int* filesize){
-	/*struct stat buf;
-	int fileDescriptor = fileno(ptr_myfile);
+int get_file_size(){
 
-	if(fstat(fileDescriptor,&buf) < 0){
-
-		printf("Error getting file info\n");
-		return 1;
-
-	}
-
-	*filesize =  buf.st_size;
-	return 0;*/
-
-	fseek(ptr_myfile, 0L, SEEK_END);
-	*filesize = ftell(ptr_myfile);
-	fseek(ptr_myfile, 0L, SEEK_SET);
-	return 0;
+	fseek(file.fp, 0L, SEEK_END);
+	int filesize = (int) ftell(file.fp);
+	if(filesize == -1)
+		return -1;
+	fseek(file.fp, 0L, SEEK_SET);
+	return filesize;
 
 }
 
-int create_STARTEND_packet(unsigned char* start_packet,unsigned char* filename,int filesize,int type)
-{
-	int length_filename = strlen((char*)filename);
-
-	unsigned char filesize_char[4];
-	filesize_char[0] = (filesize >> 24) & 0xFF;
-	filesize_char[1] = (filesize >> 16) & 0xFF;
-	filesize_char[2] = (filesize >> 8) & 0xFF;
-	filesize_char[3] = filesize & 0xFF;
-	int length_filesize = sizeof(filesize_char)/sizeof(filesize_char[0]);
-
-	start_packet = (unsigned char *) realloc(start_packet,length_filename+length_filesize+5);
-	if(type == 1)
-	start_packet[0] = 0x02;
-	else {
-		start_packet[0] = 0x03;
-	}
-	start_packet[1] = 0x00;
-	start_packet[2] = length_filesize;
+int create_STARTEND_packet(unsigned char* packet, int type){
 	int i = 0;
 	int j = 3;
+	unsigned char filesize_char[4];
+	unsigned int filename_length = (unsigned int) strlen(file.filename);
+
+	//convert filesize to and unsigned char array
+	filesize_char[0] = (file.filesize >> 24) & 0xFF;
+	filesize_char[1] = (file.filesize >> 16) & 0xFF;
+	filesize_char[2] = (file.filesize >> 8) & 0xFF;
+	filesize_char[3] = file.filesize & 0xFF;
+
+	//size of filesize unsigned char array, normally is 4
+	int length_filesize = sizeof(filesize_char)/sizeof(filesize_char[0]);
+
+
+	if(type == START_PACKET_TYPE)
+		packet[0] = 0x02;
+	else if(type == END_PACKET_TYPE) {
+		packet[0] = 0x03;
+	}
+	else{
+		return -1;
+	}
+	packet[1] = 0x00;
+	packet[2] = length_filesize;
+
+
+	//put filesize unsigned char array in packet array
 	for(; i < length_filesize; i++,j++){
-		start_packet[j] = filesize_char[i];
+		packet[j] = filesize_char[i];
 	}
 
-	start_packet[j] = 0x01;
+	packet[j] = 0x01;
 	j++;
-	start_packet[j] =  length_filename;
+	packet[j] =  filename_length;
 
-	//printf("ashdsa%x\n",start_packet[j]);
 	j++;
 	i=0;
-	for(;i < length_filename; i++,j++)
+	for(;i < filename_length; i++,j++)
 	{
-		start_packet[j] = filename[i];
+		packet[j] = file.filename[i];
 	}
-	/* i=0;
-	 for(; i< length_filename;i++){
-		 printf("%c\n",filename[i]);
-	 }*/
-	return length_filename+length_filesize+5;
+
+
+	return j;
 
 }
 
 
 
-void handle_readfile(FILE*fp,int port,int sizetoread)
+void handle_readfile()
 {
-	unsigned char* data = malloc(sizetoread);
+	unsigned char* data = malloc(app_info.size_to_read);
 	//FILE * newfile = fopen("penguin.gif","wb");
 
-	fseek(fp,0,SEEK_SET);
+	fseek(file.fp,0,SEEK_SET);
 	while(TRUE)
 	{
 
 		int res = 0;
-		res = fread(data,sizeof(unsigned char),sizetoread,fp);
+		res = fread(data,sizeof(unsigned char),app_info.size_to_read,file.fp);
 		if(res > 0)
 		{
 			printf("RES: %d\n", res);
 			//handle_writefile(newfile,data,sizetoread);
-			if(send_message(&port,data,res) == FALSE){
-				LLCLOSE(&port, -1);
+			if(send_message(data,res) == FALSE){
+				LLCLOSE(app_info.file_descriptor, -1);
 				exit(-1);
 			}
 			printf("GO FOR NEXT PACKAGE\n");
 		}
-		if(feof(fp))
+		if(feof(file.fp))
 			break;
 
 	}
@@ -353,11 +348,8 @@ void handle_readfile(FILE*fp,int port,int sizetoread)
 
 }
 
-void handle_writefile(FILE * fp,unsigned char* data,int sizetowrite){
+void handle_writefile(unsigned char* data,int sizetowrite){
 
-	fseek(fp,0,SEEK_END);
-	fwrite(data,sizeof(unsigned char),sizetowrite,fp);
+	fseek(file.fp,0,SEEK_END);
+	fwrite(data,sizeof(unsigned char),sizetowrite,file.fp);
 }
-
-
-
