@@ -173,12 +173,13 @@ int main(int argc, char** argv){
 
 	if(app_info.file_descriptor>0){
 			if(strcmp("w", app_info.status)==0){
-				if(argv[3] == NULL){
-					printf("You need to specify the file to send\n");
+				if(argv[3] == NULL || argv[4] == NULL){
+					printf("You need to specify the file to send and the size to read\n");
 					exit(-1);
 				}
 
 				file.filename = (char*) argv[3];
+				app_info.size_to_read = atoi(argv[4]);
 				int start_end_max_size;
 				unsigned char* start_packet;
 				unsigned char* end_packet;
@@ -214,7 +215,7 @@ int main(int argc, char** argv){
 				}
 
 				printf("IS START: %d\n", is_start);
-				handle_readfile(128);
+				handle_readfile();
 				printf("FINISH FILE IS GOING TO LAST PACKET\n");
 
 				is_start = TRUE;
@@ -318,9 +319,9 @@ int create_STARTEND_packet(unsigned char* packet, int type){
 
 
 
-void handle_readfile(int sizetoread)
+void handle_readfile()
 {
-	unsigned char* data = malloc(sizetoread);
+	unsigned char* data = malloc(app_info.size_to_read);
 	//FILE * newfile = fopen("penguin.gif","wb");
 
 	fseek(file.fp,0,SEEK_SET);
@@ -328,7 +329,7 @@ void handle_readfile(int sizetoread)
 	{
 
 		int res = 0;
-		res = fread(data,sizeof(unsigned char),sizetoread,file.fp);
+		res = fread(data,sizeof(unsigned char),app_info.size_to_read,file.fp);
 		if(res > 0)
 		{
 			printf("RES: %d\n", res);

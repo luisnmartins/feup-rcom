@@ -243,7 +243,9 @@ unsigned char* create_package(unsigned char* msg, int* length){
 	new_message[*length] = bcc2;
 		*length = *length+1;
 	i=0;
+	printf("DEU \n");
 	unsigned char* stuffed_message = byte_stuffing(new_message, length);
+
 	unsigned char* control_message = add_control_message(stuffed_message, length);
 
 	return control_message;
@@ -288,20 +290,21 @@ unsigned char* remove_head_msg_connection(unsigned char* msg, int* length){
 }
 
 
-unsigned char* add_control_message(unsigned char* msg, int* length){
-	*length = *length+5;
-	unsigned char* full_message = (unsigned char*) malloc(*length);
+unsigned char* add_control_message(unsigned char* stuffed_message_control, int* length){
+	unsigned char* full_message = (unsigned char*) malloc(*length+5);
 	int i=0;
 	full_message[0] = FLAG;
 	full_message[1] = ADDR;
 	full_message[2] = control_values[control_value];
-	printf("CONTROL %x\n", full_message[2]);
 	full_message[3] = full_message[1]^full_message[2];
 	for(; i<*length; i++){
-		full_message[i+4] = msg[i];
+		full_message[i+4] = stuffed_message_control[i];
 	}
-	full_message[*length-1] = FLAG;
-	/*free(msg);*/
+	full_message[*length+4] = FLAG;
+	*length = *length+5;
+	
+	free(stuffed_message_control);
+
 	return full_message;
 }
 
@@ -310,42 +313,50 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 	unsigned char* str;
 	int i=0;
 	int j=0;
-	int new_length = *length;
-	str = (unsigned char *) malloc(*length);
-
+	unsigned int array_length = *length;
+	str = (unsigned char *) malloc(array_length);
 	for(; i < *length; i++, j++){
+
+		if(j >= array_length){
+			array_length = array_length+(array_length/2);
+			str = (unsigned char*) realloc(str, array_length);
+
+		}
 		if(msg[i] ==  0x7e){
-			str = (unsigned char *) realloc(str, new_length+1);
 			str[j] = 0x7d;
 			str[j+1] = 0x5e;
-			new_length++;
 			j++;
 		}
 		else if(msg[i] == 0x7d){
-			str = (unsigned char *) realloc(str, new_length+1);
 			str[j] = 0x7d;
 			str[j+1]= 0x5d;
-			new_length++;
 			j++;
 		}
 		else{
 			str[j] = msg[i];
 		}
 	}
-	*length = new_length;
+	*length = j;
 	free(msg);
+	i=0;
+	for(; i<*length; i++){
+		printf("STUFFED: %x\n", str[i]);
+	}
 	return str;
 }
 
 unsigned char* byte_destuffing(unsigned char* msg, int* length){
-	unsigned char* str;
-	str = (unsigned char*) malloc(1);
+	unsigned int array_length = 133;
+	unsigned char* str = (unsigned char*) malloc(array_length);
 	int i=0;
 	int new_length = 0;
 
 	for(; i<*length; i++){
 		new_length++;
-		str = (unsigned char *) realloc(str, new_length);
+		if(new_length >= array_length){
+			array_length = array_length+ (array_length/2);
+			str = (unsigned char *) realloc(str, array_length);
+		}
 		if(msg[i] == 0x7d){
 			if(msg[i+1] == 0x5e){
 				str[new_length-1] = 0x7e;
@@ -434,14 +445,18 @@ unsigned char* LLREAD(int fd, int* length){
 	*length=0;
 	flag_error = 0;
 	STOP = FALSE;
-	unsigned char* msg= (unsigned char*) malloc(1);
+	unsigned int msg_array_length = 138;
+	unsigned char* msg= (unsigned char*) malloc(msg_array_length);
 	unsigned char* finish = (unsigned char*) malloc(1);
 	finish[0] = DISC;
-	while (STOP==FALSE) {       /* loop for input */
+	while (STOP==FALSE) {       /* loop for read info */
 		res = read(fd,&elem,1);
 		if(res>0){
 			*length = *length+1;
-			msg = realloc(msg, *length);
+			if(*length >= msg_array_length){
+				msg_array_length = msg_array_length+(msg_array_length/2);
+				msg = realloc(msg, msg_array_length);
+			}
 			state_machine(elem, &state, msg, length, TRAMA_I);
 		}
 	}

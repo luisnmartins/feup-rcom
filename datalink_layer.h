@@ -54,7 +54,7 @@ unsigned char* create_package(unsigned char* msg, int* length);
 int get_result(int *fd);
 unsigned char* verify_bcc2(unsigned char* control_message, int* length);
 unsigned char* remove_head_msg_connection(unsigned char* msg, int* length);
-unsigned char* add_control_message(unsigned char* msg, int* length);
+unsigned char* add_control_message(unsigned char* stuffed_message_control, int* length);
 unsigned char* byte_stuffing(unsigned char* msg, int* length);
 unsigned char* byte_destuffing(unsigned char* msg, int* length);
 int LLWRITE(int fd, unsigned char* msg, int* length);

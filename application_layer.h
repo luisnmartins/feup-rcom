@@ -33,6 +33,7 @@ typedef struct {
 typedef struct{
   int file_descriptor;
   char* status;
+  int size_to_read;
 }application_layer;
 
 int send_message(unsigned char* msg, int length);
@@ -42,7 +43,7 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length);
 int get_file_size();
 int create_STARTEND_packet(unsigned char* packet, int type);
 void start_message(unsigned char* msg);
-void handle_readfile(int sizetoread);
+void handle_readfile();
 void handle_writefile(unsigned char * data,int sizetowrite);
 int verify_end(unsigned char* msg);
 int main(int argc, char** argv);
