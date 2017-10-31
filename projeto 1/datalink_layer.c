@@ -92,9 +92,9 @@ int set_writer(int* fd){
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
   while(flag_attempts < 4 && flag_alarm == 1){
-	    printf("TRY: %x\n", flag_attempts);
+	    //printf("TRY: %x\n", flag_attempts);
 		res = write(*fd,SET,5);
-      printf("%d bytes written\n", res);
+      //printf("%d bytes written\n", res);
       alarm(3);
       flag_alarm=0;
 
@@ -143,7 +143,7 @@ int set_reader(int* fd){
 	res = write(*fd,UA,5);
 
 
-	printf("%d bytes written\n", res);
+	//printf("%d bytes written\n", res);
 
 	return TRUE;
 }
@@ -194,7 +194,7 @@ void set_serial_port(char* port, int* fd){
       exit(-1);
     }
 
-    printf("New termios structure set\n");
+    //printf("New termios structure set\n");
 
 }
 
@@ -247,7 +247,6 @@ unsigned char* create_package(unsigned char* msg, int* length){
 	new_message[*length] = bcc2;
 		*length = *length+1;
 	i=0;
-	printf("DEU \n");
 	unsigned char* stuffed_message = byte_stuffing(new_message, length);
 
 	unsigned char* control_message = add_control_message(stuffed_message, length);
@@ -342,10 +341,13 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 	}
 	*length = j;
 	free(msg);
+
+	/*
 	i=0;
 	for(; i<*length; i++){
 		printf("STUFFED: %x\n", str[i]);
 	}
+	*/
 	return str;
 }
 
@@ -401,7 +403,7 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 
 	while(flag_attempts < 4 && flag_alarm == 1){
 		res = write(fd, full_message, *length);
-		printf("%d bytes written\n", res);
+		//printf("%d bytes written\n", res);
 
 		alarm(3);
 		flag_alarm=0;
@@ -437,7 +439,7 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 	}
 
 	control_value = control_value^1;
-	printf("PASS CONTROL VALUE\n");
+	//printf("PASS CONTROL VALUE\n");
 	return TRUE;
 }
 
@@ -466,7 +468,7 @@ unsigned char* LLREAD(int fd, int* length){
 	}
 
 	if(flag_error == 1){
-		printf("REJ BCC1:\n");
+		//printf("REJ BCC1:\n");
 		return NULL;
 	}
 	if(msg[2] == DISC){
@@ -517,11 +519,11 @@ int send_response(int fd, unsigned int type, unsigned char c){
 
 	switch (type) {
 		case RR:
-			printf("RR%d\n", bool_val^1);
+			//printf("RR%d\n", bool_val^1);
 			response[2] = control_values[(bool_val^1)+2];
 			break;
 		case REJ:
-			printf("REJ%d\n", bool_val);
+			//printf("REJ%d\n", bool_val);
 			response[2] = control_values[bool_val+4];
 			break;
 	}
@@ -575,7 +577,7 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
   int state=0;
 
 	while(flag_attempts < 4 && flag_alarm == 1){
-			printf("TRY: %x\n", flag_attempts);
+			//printf("TRY: %x\n", flag_attempts);
 		res = write(fd,disc,5);
 
 			alarm(3);
@@ -594,7 +596,7 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
 
 	}
 
-	printf("DISC0 %x\n",trama[0]);
+	//printf("DISC0 %x\n",trama[0]);
 	return trama;
 }
 
