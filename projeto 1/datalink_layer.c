@@ -466,14 +466,12 @@ unsigned char* LLREAD(int fd, int* length){
 			state_machine(elem, &state, msg, length, TRAMA_I);
 		}
 	}
-	
 	if((msg[4] == C_I) && (flag_error != 1)){
 		msg = mess_up_bcc1(msg, *length);
 		msg = mess_up_bcc2(msg, *length);
 	}
 
 	if(flag_error == 1){
-		//printf("REJ BCC1:\n");
 		return NULL;
 	}
 	if(msg[2] == DISC){
@@ -632,7 +630,6 @@ unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet){
 	
 	memcpy(messed_up_msg, packet, size_packet);
 	int perc = (rand()%100)+1;
-	printf("PERCENTAGE BCC1: %d\n", perc);
 	if(perc <= ERROR_PERCENTAGE_BCC1){
 		do{
 			letter = (unsigned char) ('A' + (rand()%256));
@@ -661,6 +658,7 @@ unsigned char* mess_up_bcc2(unsigned char* packet, int size_packet){
 			letter = (unsigned char) ('A' + (rand()%256));
 		}while(letter == messed_up_msg[i]);
 		messed_up_msg[i] = letter;
+		printf("Data messedUP\n");
 	}
 	free(packet);
 	return messed_up_msg;

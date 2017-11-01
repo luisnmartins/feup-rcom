@@ -24,7 +24,8 @@ int send_message(unsigned char* msg, int length){
 
 		return FALSE;
 	}
-
+	
+	
 	return TRUE;
 
 }
@@ -35,7 +36,6 @@ unsigned char* get_message(){
 	unsigned char* readed_msg;
 	unsigned char* only_data;
 	static int file_received_size = 0;
-	unsigned char n;
 		readed_msg = LLREAD(app_info.file_descriptor, &length);
 		if(readed_msg == NULL || readed_msg[0] == DISC){
 			return readed_msg;
@@ -45,12 +45,12 @@ unsigned char* get_message(){
 			start_message(readed_msg);
 			break;
 		case 0x01:
-			n = readed_msg[5];
+			utils_n_package++;
 			only_data = get_only_data(readed_msg, &length);
 			handle_writefile(only_data,length);
 			file_received_size += length;
 			
-			progress_bar(file.filesize, file_received_size, file.filename, 'r', n);
+			progress_bar(file.filesize, file_received_size, file.filename, 'r');
 			break;
 		case 0x03:
 			verify_end(readed_msg);
@@ -149,9 +149,9 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 		data_package[2] = l2;
 		data_package[3] = l1;
 		
+		utils_n_package++;
 		n++;
 		n = (n % 256); 
-
 		int i=0;
 		for(; i<*length; i++){
 			data_package[i+4] = msg[i];
@@ -159,6 +159,7 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 
 		*length = *length+4;
 		/*free(msg);*/
+
 		return data_package;
 }
 
@@ -339,6 +340,7 @@ void handle_readfile()
 	//FILE * newfile = fopen("penguin.gif","wb");
 	int file_sent_size = 0;
 	start_counting_time();
+	utils_n_package = 0;
 
 	fseek(file.fp,0,SEEK_SET);
 	while(TRUE)
@@ -353,7 +355,7 @@ void handle_readfile()
 				exit(-1);
 			}
 			file_sent_size += res;
-			progress_bar(file.filesize, file_sent_size, file.filename, 'w', data[5]);
+			progress_bar(file.filesize, file_sent_size, file.filename, 'w');
 		}
 		if(feof(file.fp))
 			break;

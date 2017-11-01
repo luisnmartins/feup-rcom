@@ -24,8 +24,8 @@
 #define CR 0x07
 #define BCCW 0x00
 #define BCCR 0x04
-#define ERROR_PERCENTAGE_BCC1 5
-#define ERROR_PERCENTAGE_BCC2 5
+#define ERROR_PERCENTAGE_BCC1 0
+#define ERROR_PERCENTAGE_BCC2 0
 #define S0 0
 #define S1 1
 #define S2 2

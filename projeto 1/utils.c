@@ -1,6 +1,7 @@
 #include "utils.h"
 
 struct timespec initial_time, final_time;
+int n_number = -256;
 
 void start_counting_time(){
     clock_gettime(CLOCK_REALTIME, &initial_time);
@@ -13,7 +14,7 @@ double calculate_time_elapsed(){
   return time_val;
 }
 
-void progress_bar(int filesize, int file_sent_size, char* filename, char type, unsigned char n_trama){
+void progress_bar(int filesize, int file_sent_size, char* filename, char type){
   system("clear");
   int perc_real =  file_sent_size * 100 / filesize;
   int size_bar = 50;
@@ -67,7 +68,8 @@ void progress_bar(int filesize, int file_sent_size, char* filename, char type, u
   }	
 
   /* SHOW NUMBER PACKAGE MOD 256 */
-  printf("\n\t| NUMBER PACKAGE: %x", n_trama);
+
+  printf("\n\t| NUMBER PACKAGE: %d", utils_n_package);
   printf("\n\t|"); 
 
   /* SHOW PROGRESS BAR */

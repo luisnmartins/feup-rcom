@@ -8,10 +8,11 @@
 #include <string.h>
 
 int utils_response_value[2];
+int utils_n_package;
 
 
 void start_counting_time();
 double calculate_time_elapsed();
-void progress_bar(int filesize, int file_sent_size, char* filename, char type, unsigned char n_trama);
+void progress_bar(int filesize, int file_sent_size, char* filename, char type);
 
 #endif
