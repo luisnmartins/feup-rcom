@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include "datalink_layer.h"
-#include "utils.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"

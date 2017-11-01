@@ -524,11 +524,14 @@ int send_response(int fd, unsigned int type, unsigned char c){
 
 	switch (type) {
 		case RR:
-			//printf("RR%d\n", bool_val^1);
+			utils_response_value[0] = RR;
+			utils_response_value[1] = bool_val^1;
 			response[2] = control_values[(bool_val^1)+2];
 			break;
 		case REJ:
-			//printf("REJ%d\n", bool_val);
+			utils_response_value[0] = REJ;	
+			utils_response_value[1] = bool_val^1;
+
 			response[2] = control_values[bool_val+4];
 			break;
 	}

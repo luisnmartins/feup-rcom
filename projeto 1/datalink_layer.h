@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include "utils.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -23,8 +24,8 @@
 #define CR 0x07
 #define BCCW 0x00
 #define BCCR 0x04
-#define ERROR_PERCENTAGE_BCC1 10
-#define ERROR_PERCENTAGE_BCC2 10
+#define ERROR_PERCENTAGE_BCC1 5
+#define ERROR_PERCENTAGE_BCC2 5
 #define S0 0
 #define S1 1
 #define S2 2

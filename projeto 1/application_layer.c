@@ -35,6 +35,7 @@ unsigned char* get_message(){
 	unsigned char* readed_msg;
 	unsigned char* only_data;
 	static int file_received_size = 0;
+	unsigned char n;
 		readed_msg = LLREAD(app_info.file_descriptor, &length);
 		if(readed_msg == NULL || readed_msg[0] == DISC){
 			return readed_msg;
@@ -44,11 +45,12 @@ unsigned char* get_message(){
 			start_message(readed_msg);
 			break;
 		case 0x01:
+			n = readed_msg[5];
 			only_data = get_only_data(readed_msg, &length);
 			handle_writefile(only_data,length);
 			file_received_size += length;
 			
-			progress_bar(file.filesize, file_received_size, file.filename, 'r');
+			progress_bar(file.filesize, file_received_size, file.filename, 'r', n);
 			break;
 		case 0x03:
 			verify_end(readed_msg);
@@ -138,14 +140,17 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 		unsigned char* data_package = (unsigned char*) malloc(*length+4);
 
 		unsigned char c = 0x01;
-		unsigned char n = 0x00;
+		static unsigned int n = 0;
 		int l2 = *length/255;
 		int l1 = *length%255;
-
+		
 		data_package[0] = c;
-		data_package[1] = n;
+		data_package[1] = (char) n;
 		data_package[2] = l2;
 		data_package[3] = l1;
+		
+		n++;
+		n = (n % 256); 
 
 		int i=0;
 		for(; i<*length; i++){
@@ -348,7 +353,7 @@ void handle_readfile()
 				exit(-1);
 			}
 			file_sent_size += res;
-			progress_bar(file.filesize, file_sent_size, file.filename, 'w');
+			progress_bar(file.filesize, file_sent_size, file.filename, 'w', data[5]);
 		}
 		if(feof(file.fp))
 			break;
