@@ -466,6 +466,11 @@ unsigned char* LLREAD(int fd, int* length){
 			state_machine(elem, &state, msg, length, TRAMA_I);
 		}
 	}
+	
+	if((msg[4] == C_I) && (flag_error != 1)){
+		msg = mess_up_bcc1(msg, *length);
+		msg = mess_up_bcc2(msg, *length);
+	}
 
 	if(flag_error == 1){
 		//printf("REJ BCC1:\n");
@@ -601,7 +606,7 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
 }
 
 
-unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type){
+/*unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type){
 	unsigned char * result = (unsigned char*) malloc(sizePacket);
 	int i;
 	memcpy(result,packet,sizePacket);
@@ -615,4 +620,45 @@ unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type){
 		result[i] = letter;
 	}
 	return result;
+}*/
+
+unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet){
+	
+	unsigned char* messed_up_msg = (unsigned char*) malloc(size_packet);
+	unsigned char letter;
+	
+	memcpy(messed_up_msg, packet, size_packet);
+	int perc = (rand()%100)+1;
+	printf("PERCENTAGE BCC1: %d\n", perc);
+	if(perc <= ERROR_PERCENTAGE_BCC1){
+		do{
+			letter = (unsigned char) ('A' + (rand()%256));
+		}while(letter == messed_up_msg[3]);
+		messed_up_msg[3] = letter;
+		flag_error=1;
+		printf("BBC1 messedUP\n");
+	}
+	free(packet);
+	return messed_up_msg;		
+}
+
+
+unsigned char* mess_up_bcc2(unsigned char* packet, int size_packet){
+	
+	unsigned char* messed_up_msg = (unsigned char*) malloc(size_packet);
+	unsigned char letter;
+	
+	memcpy(messed_up_msg, packet, size_packet);
+	int perc = (rand() %100)+1;
+	
+	if(perc<= ERROR_PERCENTAGE_BCC2){
+		//change data to have error in bcc2
+		int i = (rand() % (size_packet-5))+4;
+		do{
+			letter = (unsigned char) ('A' + (rand()%256));
+		}while(letter == messed_up_msg[i]);
+		messed_up_msg[i] = letter;
+	}
+	free(packet);
+	return messed_up_msg;
 }

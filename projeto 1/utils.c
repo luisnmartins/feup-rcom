@@ -1,14 +1,16 @@
 #include "utils.h"
 
-time_t initialTime, finalTime;
+struct timespec initial_time, final_time;
 
 void start_counting_time(){
-    time(&initialTime);
+    clock_gettime(CLOCK_REALTIME, &initial_time);
 }
 
 double calculate_time_elapsed(){
-  time(&finalTime);
-  return (double)(difftime(finalTime, initialTime));
+  clock_gettime(CLOCK_REALTIME, &final_time);
+  double time_val = (final_time.tv_sec-initial_time.tv_sec)+
+					(final_time.tv_nsec- initial_time.tv_nsec)/1E9;
+  return time_val;
 }
 
 void progress_bar(int filesize, int file_sent_size, char* filename, char type){
@@ -38,7 +40,7 @@ void progress_bar(int filesize, int file_sent_size, char* filename, char type){
 
   /*SHOW FILE SIZE */
   double timeSpent = calculate_time_elapsed();
-  printf("\n\t| TIME ELAPSED: %.0lf s", timeSpent);
+  printf("\n\t| TIME ELAPSED: %.4lf s", timeSpent);
   printf("\n\t|");
 
   /* SHOW TRANSMISSION SPEED */

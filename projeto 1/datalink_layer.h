@@ -23,6 +23,8 @@
 #define CR 0x07
 #define BCCW 0x00
 #define BCCR 0x04
+#define ERROR_PERCENTAGE_BCC1 10
+#define ERROR_PERCENTAGE_BCC2 10
 #define S0 0
 #define S1 1
 #define S2 2
@@ -39,6 +41,7 @@
 
 #define C_START 2
 #define C_END 3
+#define C_I 0x01
 
 
 #define TRAMA_S 0
@@ -47,7 +50,6 @@
 #define ERROR_BCC1 1
 #define ERROR_BCC2 2
 
-#define ERRORPERCENTAGE 15
 
 void alarm_handler();
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type);
@@ -65,10 +67,12 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length);
 unsigned char* byte_destuffing(unsigned char* msg, int* length);
 int LLWRITE(int fd, unsigned char* msg, int* length);
 int send_response(int fd, unsigned int type, unsigned char c);
+unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet);
+unsigned char* mess_up_bcc2(unsigned char* packet, int size_packet);
 unsigned char* LLREAD(int fd, int* length);
 void LLCLOSE(int fd, int type);
 unsigned char* reader_disc(int fd,unsigned char* disc);
-unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type);
+//unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type);
 
 
 #endif
