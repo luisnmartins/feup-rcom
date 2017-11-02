@@ -40,6 +40,7 @@ unsigned char* get_message(){
 		}
 	switch(readed_msg[0]){
 		case 0x02:
+			fprintf(fp_log, "[BEGIN FILE]\n");
 			start_message(readed_msg);
 			break;
 		case 0x01:
@@ -47,10 +48,10 @@ unsigned char* get_message(){
 			only_data = get_only_data(readed_msg, &length);
 			handle_writefile(only_data,length);
 			file_received_size += length;
-
 			progress_bar(file.filesize, file_received_size, file.filename, 'r');
 			break;
 		case 0x03:
+			fprintf(fp_log, "[END FILE]\n");
 			verify_end(readed_msg);
 			break;
 
@@ -86,11 +87,11 @@ int verify_end(unsigned char* msg){
 	file_size_total = (file_size[0] <<24) | (file_size[1] << 16) | (file_size[2] << 8) | (file_size[3]);
 
 	if(file_size_total == file.filesize && file_size_total == get_file_size()){
-				printf("Received file size is correct\n");
+				fprintf(fp_log,"[END FILE] Received file size is correct\n");
 				return TRUE;
 	}
 	else{
-				printf("Received file is probably corrupted\n");
+				fprintf(fp_log,"[END FILE] Received file is probably corrupted\n");
 				return FALSE;
 	}
 	return FALSE;
@@ -121,12 +122,7 @@ void start_message(unsigned char* msg){
 		}
 		file.filename[filename_size] = '\0';
 	}
-	/*
-	i=0;
-	for(; i<filename_size; i++){
-		printf("FILENAME: %c\n", file.filename[i]);
-	}
-	*/
+
 	file.fp = fopen((char*)file.filename,"wb");
 	start_counting_time();
 
@@ -179,7 +175,7 @@ int main(int argc, char** argv){
 	srand(time(NULL));
 
 	app_info.status = argv[2];
-	
+
 
 
 	if(strcmp("w", app_info.status)==0){
@@ -221,7 +217,6 @@ int main(int argc, char** argv){
 
 				int i=0;
 				for(;i < start_created_size;i++){
-					//printf("Trama Start: %x\n",start_packet[i]);
 				}
 
 				is_start = TRUE;
@@ -229,19 +224,12 @@ int main(int argc, char** argv){
 					LLCLOSE(app_info.file_descriptor, -1);
 				}
 
-				//printf("IS START: %d\n", is_start);
 				handle_readfile();
-				//printf("FINISH FILE IS GOING TO LAST PACKET\n");
 
 				is_start = TRUE;
 				end_packet = (unsigned char*) malloc(start_end_max_size);
 				int endpacket_size = create_STARTEND_packet(end_packet,END_PACKET_TYPE);
-				/*
-				i=0;
-				for(;i < endpacket_size;i++){
-					printf("Trama END: %x\n",end_packet[i]);
-				}
-				*/
+
 				is_start=TRUE;
 				if(send_message(end_packet,endpacket_size) == FALSE){
 					LLCLOSE(app_info.file_descriptor, -1);
@@ -261,7 +249,7 @@ int main(int argc, char** argv){
 			if(app_info.file_descriptor>0){
 				unsigned char* msg;
 				unsigned char null_val[] = {0xAA};
-				
+
 
 				do{
 					msg = get_message();
@@ -349,11 +337,10 @@ int create_STARTEND_packet(unsigned char* packet, int type){
 void handle_readfile()
 {
 	unsigned char* data = malloc(file.size_to_read);
-	//FILE * newfile = fopen("penguin.gif","wb");
 	int file_sent_size = 0;
 	start_counting_time();
 	utils_n_package = 0;
-
+	fprintf(fp_log, "[BEGIN FILE]\n");
 	fseek(file.fp,0,SEEK_SET);
 	while(TRUE)
 	{
@@ -366,6 +353,7 @@ void handle_readfile()
 				LLCLOSE(app_info.file_descriptor, -1);
 				exit(-1);
 			}
+			fprintf(fp_log, "[PACKAGE %d] RR%d\n", utils_n_package, dl_layer.control_value);
 			file_sent_size += res;
 			progress_bar(file.filesize, file_sent_size, file.filename, 'w');
 		}
@@ -373,7 +361,7 @@ void handle_readfile()
 			break;
 
 	}
-	//printf("END FILE\n");
+	fprintf(fp_log, "[END FILE]\n");
 
 }
 

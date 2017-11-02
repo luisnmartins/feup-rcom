@@ -7,10 +7,10 @@ volatile unsigned char flag_alarm=1;
 volatile unsigned char flag_error=0;
 volatile unsigned char duplicate=FALSE;
 const unsigned char control_values[] = { 0x00, 0x40, 0x05, 0x85, 0x01, 0x81 };
-link_layer dl_layer;
 
 
 void alarm_handler(){
+	fprintf(fp_log, "[ALARM] Timeout\n");
 	flag_attempts++;
 
   if(flag_attempts >= dl_layer.max_transmissions){
@@ -89,9 +89,9 @@ int set_writer(int* fd){
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
   while(flag_attempts < dl_layer.max_transmissions && flag_alarm == 1){
-	    //printf("TRY: %x\n", flag_attempts);
+	    fprintf(fp_log,"[SET CONNECTION] TRY: %x\n", flag_attempts);
 		res = write(*fd,SET,5);
-      //printf("%d bytes written\n", res);
+
       alarm(dl_layer.timeout);
       flag_alarm=0;
 
@@ -108,11 +108,11 @@ int set_writer(int* fd){
   }
 
   if(flag_error == 1){
-     printf("Can't connect to the reader\n");
+     fprintf(fp_log,"[SET CONNECTION] Can't connect to the reader\n");
      return FALSE;
   }
   else{
-		printf("%u%u%u\n",trama[1],trama[2],trama[3]);
+		fprintf(fp_log,"[SET CONNECTION] Successful\n");
     return TRUE;
   }
 
@@ -135,7 +135,6 @@ int set_reader(int* fd){
 
       }
     }
-  printf("%u%u%u\n",trama[1],trama[2],trama[3]);
 
 	res = write(*fd,UA,5);
 
@@ -208,6 +207,7 @@ int LLOPEN(char* port, char* mode, char* timeout, char* max_transmissions){
   dl_layer.timeout = atoi(timeout);
   dl_layer.max_transmissions= atoi(max_transmissions);
   set_serial_port(port, &fd);
+	open_log_file(mode);
 
   if(strcmp(mode,"r") == 0){
     result = set_reader(&fd);
@@ -334,12 +334,6 @@ unsigned char* byte_stuffing(unsigned char* msg, int* length){
 	*length = j;
 	free(msg);
 
-	/*
-	i=0;
-	for(; i<*length; i++){
-		printf("STUFFED: %x\n", str[i]);
-	}
-	*/
 	return str;
 }
 
@@ -395,7 +389,6 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 
 	while(flag_attempts < dl_layer.max_transmissions && flag_alarm == 1){
 		res = write(fd, full_message, *length);
-		//printf("%d bytes written\n", res);
 
 		alarm(dl_layer.timeout);
 		flag_alarm=0;
@@ -411,7 +404,7 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 
 		if (STOP == TRUE) {
 			if(trama[2] == control_values[dl_layer.control_value+4]){
-				printf("ERROR CONTROL VALUE\n");
+				fprintf(fp_log, "[PACKAGE %d] REJ%d\n", utils_n_package, dl_layer.control_value);
 				flag_alarm=1;
 				flag_attempts = 1;
 				flag_error=0;
@@ -424,12 +417,11 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 
 
 	if (flag_error == 1){
-		printf("LLWRITE FLAG ERROR\n");
+		fprintf(fp_log,"[LLWRITE] Flag Error\n");
 		return FALSE;
 	}
 
 	dl_layer.control_value = dl_layer.control_value^1;
-	//printf("PASS CONTROL VALUE\n");
 	return TRUE;
 }
 
@@ -465,6 +457,7 @@ unsigned char* LLREAD(int fd, int* length){
 		return NULL;
 	}
 	if(msg[2] == DISC){
+		fprintf(fp_log, "[LLREAD] DISC received\n");
 		LLCLOSE(fd, READER);
 		return finish;
 	}
@@ -512,14 +505,17 @@ int send_response(int fd, unsigned int type, unsigned char c){
 
 	switch (type) {
 		case RR:
+			if (utils_n_package >= 1)
+				fprintf(fp_log, "[PACKAGE %d] RR%d\n", utils_n_package, bool_val^1);
 			utils_response_value[0] = RR;
 			utils_response_value[1] = bool_val^1;
 			response[2] = control_values[(bool_val^1)+2];
 			break;
 		case REJ:
+			if (utils_n_package >= 1)
+				fprintf(fp_log, "[PACKAGE %d] REJ%d\n", utils_n_package, bool_val);
 			utils_response_value[0] = REJ;
-			utils_response_value[1] = bool_val^1;
-
+			utils_response_value[1] = bool_val;
 			response[2] = control_values[bool_val+4];
 			break;
 	}
@@ -535,33 +531,36 @@ void LLCLOSE(int fd, int type){
 	unsigned char * received;
 	if(type == READER){
 		received = send_disc(fd);
+		fprintf(fp_log,"[LLCLOSE] DISC sended with success \n");
 		if(received[2] == CR){
-			printf("Final UA received with success\n");
+			fprintf(fp_log,"[LLCLOSE] Final UA received with success\n");
 		}else {
-			printf("Problem receiving final UA\n");
+			fprintf(fp_log,"[LLCLOSE] Problem receiving final UA\n");
 		}
 
 
 	}else if(type == WRITER){
 
 		received = send_disc(fd);
-
+		fprintf(fp_log,"[LLCLOSE] DISC sended with success \n");
 		if(received[2] == DISC){
-
-			printf("Final DISC received with success\n");
+			fprintf(fp_log,"[LLCLOSE] Final DISC received with success\n");
 		}else {
-			printf("Problem receiving final DISC\n");
+			fprintf(fp_log,"[LLCLOSE] Problem receiving final DISC\n");
 		}
 		unsigned char UA[5] = {FLAG, ADDR, CR, BCCR, FLAG};
 		write(fd,UA,5);
+		fprintf(fp_log,"[LLCLOSE] Final UA sended with success\n");
 		sleep(1);
 	}
 
 	close_serial_port(fd);
+	fprintf(fp_log, "\n\n");
+	fclose(fp_log);
 }
 
 unsigned char* send_disc(int fd){
-	 
+
 	 unsigned char disc[5] = {FLAG, ADDR, DISC, ADDR^DISC, FLAG};
 	 unsigned char elem;
 	 int res;
@@ -572,15 +571,11 @@ unsigned char* send_disc(int fd){
 	 flag_alarm=1;
 	 flag_error=0;
 	 STOP = FALSE;
-	
-	
- 
-  
-	while((flag_attempts < dl_layer.max_transmissions) && (flag_alarm == 1)){
-			//printf("TRY: %x\n", flag_attempts);
-		res = write(fd,disc,5);
-			
 
+	while((flag_attempts < dl_layer.max_transmissions) && (flag_alarm == 1)){
+			res = write(fd,disc,5);
+
+			fprintf(fp_log,"[LLCLOSE] Send DISC: try %d \n", flag_attempts);
 			alarm(dl_layer.timeout);
 			flag_alarm=0;
 
@@ -589,32 +584,13 @@ unsigned char* send_disc(int fd){
 					if(res >0) {
 						trama_length++;
 							state_machine(elem, &state, trama, &trama_length, TRAMA_S);
-
 					}
 			}
 
 	}
 
-	//printf("DISC0 %x\n",trama[0]);
 	return trama;
 }
-
-
-/*unsigned char* distortBCC(unsigned char * packet,int sizePacket,int type){
-	unsigned char * result = (unsigned char*) malloc(sizePacket);
-	int i;
-	memcpy(result,packet,sizePacket);
-	int random = (rand() % 100) + 1;
-	if(random <= ERRORPERCENTAGE){
-		if(type == ERROR_BCC2)
-		i = (rand() % (sizePacket-5))+4;
-		else if(type == ERROR_BCC1)
-		i = (rand() % 2) + 1;
-		unsigned char letter = (unsigned char) ('A' + (rand() % 26));
-		result[i] = letter;
-	}
-	return result;
-}*/
 
 unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet){
 

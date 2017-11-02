@@ -21,6 +21,8 @@ typedef struct{
 	unsigned int max_transmissions;
 } link_layer;
 
+link_layer dl_layer;
+
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -59,7 +61,6 @@ typedef struct{
 
 #define ERROR_BCC1 1
 #define ERROR_BCC2 2
-
 
 void alarm_handler();
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type);
