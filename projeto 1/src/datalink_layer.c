@@ -5,18 +5,15 @@ volatile int STOP=FALSE;
 volatile unsigned char flag_attempts=1;
 volatile unsigned char flag_alarm=1;
 volatile unsigned char flag_error=0;
-const unsigned char control_values[] = { 0x00, 0x40, 0x05, 0x85, 0x01, 0x81 };
-struct termios oldtio,newtio;
-struct timespec clockStart,clockEnd;
-volatile unsigned char control_value=0;
 volatile unsigned char duplicate=FALSE;
-
+const unsigned char control_values[] = { 0x00, 0x40, 0x05, 0x85, 0x01, 0x81 };
+link_layer dl_layer;
 
 
 void alarm_handler(){
 	flag_attempts++;
 
-  if(flag_attempts >= 4){
+  if(flag_attempts >= dl_layer.max_transmissions){
     flag_error = 1;
   }
 	flag_alarm=1;
@@ -91,11 +88,11 @@ int set_writer(int* fd){
 	int trama_length = 0;
   int state=0;
 	(void) signal(SIGALRM, alarm_handler);
-  while(flag_attempts < 4 && flag_alarm == 1){
+  while(flag_attempts < dl_layer.max_transmissions && flag_alarm == 1){
 	    //printf("TRY: %x\n", flag_attempts);
 		res = write(*fd,SET,5);
       //printf("%d bytes written\n", res);
-      alarm(3);
+      alarm(dl_layer.timeout);
       flag_alarm=0;
 
     // Wait for UA signal.
@@ -142,9 +139,6 @@ int set_reader(int* fd){
 
 	res = write(*fd,UA,5);
 
-
-	//printf("%d bytes written\n", res);
-
 	return TRUE;
 }
 
@@ -162,34 +156,29 @@ void set_serial_port(char* port, int* fd){
 
 	if (*fd <0) {perror(port); exit(-1); }
 
-    if (tcgetattr(*fd,&oldtio) == -1) { /* save current port settings */
+    if (tcgetattr(*fd,&dl_layer.oldtio) == -1) { /* save current port settings */
       perror("tcgetattr");
       exit(-1);
     }
 
-    bzero(&newtio, sizeof(newtio));
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-    newtio.c_iflag = IGNPAR;
-    newtio.c_oflag = 0;
+    bzero(&dl_layer.newtio, sizeof(dl_layer.newtio));
+    dl_layer.newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    dl_layer.newtio.c_iflag = IGNPAR;
+    dl_layer.newtio.c_oflag = 0;
 
     /* set input mode (non-canonical, no echo,...) */
-    newtio.c_lflag = 0;
+    dl_layer.newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME]    = 1;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
+    dl_layer.newtio.c_cc[VTIME]    = 1;   /* inter-character timer unused */
+    dl_layer.newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
 
-    /*
-      VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-      leitura do(s) próximo(s) caracter(es)
-    */
+
 
     tcflush(*fd, TCIOFLUSH);
 
-	//start clock
-	clock_gettime(CLOCK_REALTIME,&clockStart);
 
-    if ( tcsetattr(*fd,TCSANOW,&newtio) == -1) {
+    if ( tcsetattr(*fd,TCSANOW,&dl_layer.newtio) == -1) {
       perror("tcsetattr");
       exit(-1);
     }
@@ -201,7 +190,7 @@ void set_serial_port(char* port, int* fd){
 
 int close_serial_port(int fd){
 
-	if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+	if ( tcsetattr(fd,TCSANOW,&dl_layer.oldtio) == -1) {
       perror("tcsetattr");
       exit(-1);
     }
@@ -211,10 +200,13 @@ int close_serial_port(int fd){
 }
 
 
-int LLOPEN(char* port, char* mode){
+int LLOPEN(char* port, char* mode, char* timeout, char* max_transmissions){
 
   int fd;
   int result;
+	dl_layer.control_value = 0;
+	dl_layer.timeout = atoi(timeout);
+	dl_layer.max_transmissions= atoi(max_transmissions);
   set_serial_port(port, &fd);
 
   if(strcmp(mode,"r") == 0){
@@ -298,7 +290,7 @@ unsigned char* add_control_message(unsigned char* stuffed_message_control, int* 
 	int i=0;
 	full_message[0] = FLAG;
 	full_message[1] = ADDR;
-	full_message[2] = control_values[control_value];
+	full_message[2] = control_values[dl_layer.control_value];
 	full_message[3] = full_message[1]^full_message[2];
 	for(; i<*length; i++){
 		full_message[i+4] = stuffed_message_control[i];
@@ -401,11 +393,11 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 	flag_alarm=1;
 	flag_error=0;
 
-	while(flag_attempts < 4 && flag_alarm == 1){
+	while(flag_attempts < dl_layer.max_transmissions && flag_alarm == 1){
 		res = write(fd, full_message, *length);
 		//printf("%d bytes written\n", res);
 
-		alarm(3);
+		alarm(dl_layer.timeout);
 		flag_alarm=0;
 		// Wait for response signal.
 		while(STOP == FALSE && flag_alarm == 0){
@@ -418,7 +410,7 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 		}
 
 		if (STOP == TRUE) {
-			if(trama[2] == control_values[control_value+4]){
+			if(trama[2] == control_values[dl_layer.control_value+4]){
 				printf("ERROR CONTROL VALUE\n");
 				flag_alarm=1;
 				flag_attempts = 1;
@@ -436,7 +428,7 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 		return FALSE;
 	}
 
-	control_value = control_value^1;
+	dl_layer.control_value = dl_layer.control_value^1;
 	//printf("PASS CONTROL VALUE\n");
 	return TRUE;
 }
@@ -477,7 +469,7 @@ unsigned char* LLREAD(int fd, int* length){
 		return finish;
 	}
 
-	duplicate = (control_values[control_value] == msg[2]) ? FALSE: TRUE;
+	duplicate = (control_values[dl_layer.control_value] == msg[2]) ? FALSE: TRUE;
 	unsigned char char2_temp = msg[2];
 	unsigned char* msg_no_head = remove_head_msg_connection(msg, length);
 	unsigned char* msg_no_bcc2= verify_bcc2(msg_no_head, length);
@@ -495,7 +487,7 @@ unsigned char* LLREAD(int fd, int* length){
 	}
 	else{
 		if(duplicate != TRUE){
-			control_value = send_response(fd, RR, char2_temp);
+			dl_layer.control_value = send_response(fd, RR, char2_temp);
 			return msg_no_bcc2;
 		}
 		else{
@@ -580,13 +572,13 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
 	int trama_length = 0;
   int state=0;
 
-	while(flag_attempts < 4 && flag_alarm == 1){
+	while((flag_attempts < dl_layer.max_transmissions) && (flag_alarm == 1)){
 			//printf("TRY: %x\n", flag_attempts);
 		res = write(fd,disc,5);
 
-			alarm(3);
+			alarm(dl_layer.timeout);
 			flag_alarm=0;
-			
+
 			while(STOP == FALSE && flag_alarm == 0){
 			res = read(fd,&elem,1);
 					if(res >0) {

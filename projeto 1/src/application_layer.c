@@ -179,15 +179,18 @@ int main(int argc, char** argv){
 	srand(time(NULL));
 
 	app_info.status = argv[2];
-	app_info.file_descriptor = LLOPEN(argv[1], app_info.status);
+	app_info.file_descriptor = LLOPEN(argv[1], app_info.status, argv[5], argv[6]);
 
 	if(app_info.file_descriptor>0){
 			if(strcmp("w", app_info.status)==0){
 				if(argv[3] == NULL || argv[4] == NULL){
 					printf("You need to specify the file to send and the size to read\n");
-					exit(-1);
+					exit(1);
 				}
-
+				if(argv[5] == NULL || argv[6] == NULL){
+					printf("You need to specify the timeout value and the maximum number of transmissions\n");
+					exit(1);
+				}
 				file.filename = (char*) argv[3];
 				file.size_to_read = atoi(argv[4]);
 				int start_end_max_size;

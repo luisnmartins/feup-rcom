@@ -13,6 +13,15 @@
 #include <time.h>
 #include "utils.h"
 
+typedef struct{
+	struct termios oldtio;
+	struct termios newtio;
+	unsigned char control_value;
+	unsigned int timeout;
+	unsigned int max_transmissions;
+} link_layer;
+
+
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -58,7 +67,7 @@ int set_writer(int* fd);
 int set_reader(int* fd);
 void set_serial_port(char* port, int* fd);
 int close_serial_port(int fd);
-int LLOPEN(char* port, char* mode);
+int LLOPEN(char* port, char* mode, char* timeout, char* max_transmissions);
 unsigned char* create_package(unsigned char* msg, int* length);
 int get_result(int *fd);
 unsigned char* verify_bcc2(unsigned char* control_message, int* length);
