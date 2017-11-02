@@ -417,8 +417,6 @@ int LLWRITE(int fd, unsigned char* msg, int* length){
 			}
 		}
 
-
-
 		if (STOP == TRUE) {
 			if(trama[2] == control_values[control_value+4]){
 				printf("ERROR CONTROL VALUE\n");
@@ -527,7 +525,7 @@ int send_response(int fd, unsigned int type, unsigned char c){
 			response[2] = control_values[(bool_val^1)+2];
 			break;
 		case REJ:
-			utils_response_value[0] = REJ;	
+			utils_response_value[0] = REJ;
 			utils_response_value[1] = bool_val^1;
 
 			response[2] = control_values[bool_val+4];
@@ -588,9 +586,7 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
 
 			alarm(3);
 			flag_alarm=0;
-
-
-
+			
 			while(STOP == FALSE && flag_alarm == 0){
 			res = read(fd,&elem,1);
 					if(res >0) {
@@ -624,10 +620,10 @@ unsigned char* reader_disc(int fd,unsigned char* disc){
 }*/
 
 unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet){
-	
+
 	unsigned char* messed_up_msg = (unsigned char*) malloc(size_packet);
 	unsigned char letter;
-	
+
 	memcpy(messed_up_msg, packet, size_packet);
 	int perc = (rand()%100)+1;
 	if(perc <= ERROR_PERCENTAGE_BCC1){
@@ -639,18 +635,18 @@ unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet){
 		printf("BBC1 messedUP\n");
 	}
 	free(packet);
-	return messed_up_msg;		
+	return messed_up_msg;
 }
 
 
 unsigned char* mess_up_bcc2(unsigned char* packet, int size_packet){
-	
+
 	unsigned char* messed_up_msg = (unsigned char*) malloc(size_packet);
 	unsigned char letter;
-	
+
 	memcpy(messed_up_msg, packet, size_packet);
 	int perc = (rand() %100)+1;
-	
+
 	if(perc<= ERROR_PERCENTAGE_BCC2){
 		//change data to have error in bcc2
 		int i = (rand() % (size_packet-5))+4;

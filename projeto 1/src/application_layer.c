@@ -10,9 +10,7 @@ int send_message(unsigned char* msg, int length){
 	int res;
 	if(is_start == FALSE){
 		unsigned char* data_package = data_package_constructor(msg, &length);
-		//printf("DATA PACKAGE\n");
 		res= LLWRITE(app_info.file_descriptor, data_package, &length);
-		//printf("RES LLWIRTE: %d\n", res);
 
 	}
 	else{
@@ -24,8 +22,8 @@ int send_message(unsigned char* msg, int length){
 
 		return FALSE;
 	}
-	
-	
+
+
 	return TRUE;
 
 }
@@ -49,7 +47,7 @@ unsigned char* get_message(){
 			only_data = get_only_data(readed_msg, &length);
 			handle_writefile(only_data,length);
 			file_received_size += length;
-			
+
 			progress_bar(file.filesize, file_received_size, file.filename, 'r');
 			break;
 		case 0x03:
@@ -143,15 +141,15 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 		static unsigned int n = 0;
 		int l2 = *length/255;
 		int l1 = *length%255;
-		
+
 		data_package[0] = c;
 		data_package[1] = (char) n;
 		data_package[2] = l2;
 		data_package[3] = l1;
-		
+
 		utils_n_package++;
 		n++;
-		n = (n % 256); 
+		n = (n % 256);
 		int i=0;
 		for(; i<*length; i++){
 			data_package[i+4] = msg[i];
@@ -191,7 +189,7 @@ int main(int argc, char** argv){
 				}
 
 				file.filename = (char*) argv[3];
-				app_info.size_to_read = atoi(argv[4]);
+				file.size_to_read = atoi(argv[4]);
 				int start_end_max_size;
 				unsigned char* start_packet;
 				unsigned char* end_packet;
@@ -336,7 +334,7 @@ int create_STARTEND_packet(unsigned char* packet, int type){
 
 void handle_readfile()
 {
-	unsigned char* data = malloc(app_info.size_to_read);
+	unsigned char* data = malloc(file.size_to_read);
 	//FILE * newfile = fopen("penguin.gif","wb");
 	int file_sent_size = 0;
 	start_counting_time();
@@ -346,7 +344,7 @@ void handle_readfile()
 	while(TRUE)
 	{
 		int res = 0;
-		res = fread(data,sizeof(unsigned char),app_info.size_to_read,file.fp);
+		res = fread(data,sizeof(unsigned char),file.size_to_read,file.fp);
 		if(res > 0)
 		{
 
