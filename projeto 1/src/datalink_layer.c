@@ -204,9 +204,9 @@ int LLOPEN(char* port, char* mode, char* timeout, char* max_transmissions){
 
   int fd;
   int result;
-	dl_layer.control_value = 0;
-	dl_layer.timeout = atoi(timeout);
-	dl_layer.max_transmissions= atoi(max_transmissions);
+  dl_layer.control_value = 0;
+  dl_layer.timeout = atoi(timeout);
+  dl_layer.max_transmissions= atoi(max_transmissions);
   set_serial_port(port, &fd);
 
   if(strcmp(mode,"r") == 0){
@@ -532,10 +532,9 @@ int send_response(int fd, unsigned int type, unsigned char c){
 
 
 void LLCLOSE(int fd, int type){
-	unsigned char disc[5] = {FLAG, ADDR, DISC, ADDR^DISC, FLAG};
 	unsigned char * received;
 	if(type == READER){
-		received = reader_disc(fd,disc);
+		received = send_disc(fd);
 		if(received[2] == CR){
 			printf("Final UA received with success\n");
 		}else {
@@ -545,7 +544,7 @@ void LLCLOSE(int fd, int type){
 
 	}else if(type == WRITER){
 
-		received = reader_disc(fd,disc);
+		received = send_disc(fd);
 
 		if(received[2] == DISC){
 
@@ -561,20 +560,26 @@ void LLCLOSE(int fd, int type){
 	close_serial_port(fd);
 }
 
-unsigned char* reader_disc(int fd,unsigned char* disc){
+unsigned char* send_disc(int fd){
+	 
+	 unsigned char disc[5] = {FLAG, ADDR, DISC, ADDR^DISC, FLAG};
+	 unsigned char elem;
+	 int res;
+	 unsigned char* trama = (unsigned char*) malloc(5);
+	 int trama_length = 0;
+     int state=0;
 	 flag_attempts=1;
 	 flag_alarm=1;
 	 flag_error=0;
 	 STOP = FALSE;
-	unsigned char elem;
-	int res;
-  unsigned char* trama = (unsigned char*) malloc(5);
-	int trama_length = 0;
-  int state=0;
-
+	
+	
+ 
+  
 	while((flag_attempts < dl_layer.max_transmissions) && (flag_alarm == 1)){
 			//printf("TRY: %x\n", flag_attempts);
 		res = write(fd,disc,5);
+			
 
 			alarm(dl_layer.timeout);
 			flag_alarm=0;

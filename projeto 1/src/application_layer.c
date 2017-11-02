@@ -179,18 +179,20 @@ int main(int argc, char** argv){
 	srand(time(NULL));
 
 	app_info.status = argv[2];
-	app_info.file_descriptor = LLOPEN(argv[1], app_info.status, argv[5], argv[6]);
+	
 
-	if(app_info.file_descriptor>0){
-			if(strcmp("w", app_info.status)==0){
-				if(argv[3] == NULL || argv[4] == NULL){
-					printf("You need to specify the file to send and the size to read\n");
-					exit(1);
-				}
-				if(argv[5] == NULL || argv[6] == NULL){
-					printf("You need to specify the timeout value and the maximum number of transmissions\n");
-					exit(1);
-				}
+
+	if(strcmp("w", app_info.status)==0){
+		if(argv[3] == NULL || argv[4] == NULL){
+			printf("You need to specify the file to send and the size to read\n");
+			exit(1);
+		}
+		if(argv[5] == NULL || argv[6] == NULL){
+			printf("You need to specify the timeout value and the maximum number of transmissions\n");
+			exit(1);
+		}
+		app_info.file_descriptor = LLOPEN(argv[1], app_info.status, argv[5], argv[6]);
+			if(app_info.file_descriptor>0){
 				file.filename = (char*) argv[3];
 				file.size_to_read = atoi(argv[4]);
 				int start_end_max_size;
@@ -249,9 +251,18 @@ int main(int argc, char** argv){
 
 
 			}
-			else if(strcmp("r", app_info.status)==0){
+		}
+		else if(strcmp("r", app_info.status)==0){
+			if(argv[3] == NULL || argv[4] == NULL){
+					printf("You need to specify the timeout value and the maximum number of transmissions\n");
+					exit(1);
+			}
+			app_info.file_descriptor = LLOPEN(argv[1], app_info.status, argv[3], argv[4]);
+			if(app_info.file_descriptor>0){
 				unsigned char* msg;
 				unsigned char null_val[] = {0xAA};
+				
+
 				do{
 					msg = get_message();
 
@@ -263,11 +274,11 @@ int main(int argc, char** argv){
 				}while(msg[0] != DISC);
 
 			}
-	}else
-	{
-		printf("Error opening serial port\n");
-		return 1;
-	}
+		}else
+		{
+			printf("Error opening serial port\n");
+			return 1;
+		}
 	return 0;
 
 }

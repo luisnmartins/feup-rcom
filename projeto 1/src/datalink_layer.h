@@ -81,7 +81,7 @@ unsigned char* mess_up_bcc1(unsigned char* packet, int size_packet);
 unsigned char* mess_up_bcc2(unsigned char* packet, int size_packet);
 unsigned char* LLREAD(int fd, int* length);
 void LLCLOSE(int fd, int type);
-unsigned char* reader_disc(int fd,unsigned char* disc);
+unsigned char* send_disc(int fd);
 
 
 #endif
