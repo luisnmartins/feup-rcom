@@ -48,29 +48,28 @@ void progress_bar(int filesize, int file_sent_size, char* filename, char type){
   float speed = (float) (file_sent_size / timeSpent);
   printf("\n\t| SPEED: %.2lf bytes/s", speed);
   printf("\n\t|");
- 	
+
   /* SHOW RESPONSE (ONLY READER) */
   if (type == 'r')
   {
 	switch(utils_response_value[0]){
-		
+
 		case 0:
 			printf("\n\t| RESPONSE: REJ%d", utils_response_value[1]);
   			printf("\n\t|");
-			break;	
+			break;
 
 		case 1:
 			printf("\n\t| RESPONSE: RR%d", utils_response_value[1]);
 			printf("\n\t|");
 			break;
-			
+
 	}
-  }	
+  }
 
-  /* SHOW NUMBER PACKAGE MOD 256 */
-
-  printf("\n\t| NUMBER PACKAGE: %d", utils_n_package);
-  printf("\n\t|"); 
+  /* SHOW PACKAGE NUMBER */
+  printf("\n\t| PACKAGE NUMBER: %d", utils_n_package);
+  printf("\n\t|");
 
   /* SHOW PROGRESS BAR */
   printf("\n\t| STATUS [");
