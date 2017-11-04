@@ -83,7 +83,7 @@ unsigned char* get_message();
 unsigned char* data_package_constructor(unsigned char* msg, int* length);
 int get_file_size();
 int create_STARTEND_packet(unsigned char* packet, int type);
-void start_message(unsigned char* msg);
+void get_file_params(unsigned char* msg);
 void handle_readfile();
 void handle_writefile(unsigned char * data,int sizetowrite);
 int verify_end(unsigned char* msg);

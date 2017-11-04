@@ -228,7 +228,7 @@ int LLOPEN(char* port, char* mode, char* timeout, char* max_transmissions){
 }
 
 
-unsigned char* create_package(unsigned char* msg, int* length){
+unsigned char* create_frame(unsigned char* msg, int* length){
 	int i=0;
 	unsigned char bcc2 = 0x00;
 	unsigned char* new_message = (unsigned char*) malloc(*length+1);
@@ -241,7 +241,7 @@ unsigned char* create_package(unsigned char* msg, int* length){
 	i=0;
 	unsigned char* stuffed_message = byte_stuffing(new_message, length);
 
-	unsigned char* control_message = add_control_message(stuffed_message, length);
+	unsigned char* control_message = add_frame_header(stuffed_message, length);
 
 	return control_message;
 }
@@ -285,22 +285,22 @@ unsigned char* remove_head_msg_connection(unsigned char* msg, int* length){
 }
 
 
-unsigned char* add_control_message(unsigned char* stuffed_message_control, int* length){
-	unsigned char* full_message = (unsigned char*) malloc(*length+5);
+unsigned char* add_frame_header(unsigned char* stuffed_frame, int* length){
+	unsigned char* full_frame = (unsigned char*) malloc(*length+5);
 	int i=0;
-	full_message[0] = FLAG;
-	full_message[1] = ADDR;
-	full_message[2] = control_values[dl_layer.control_value];
-	full_message[3] = full_message[1]^full_message[2];
+	full_frame[0] = FLAG;
+	full_frame[1] = ADDR;
+	full_frame[2] = control_values[dl_layer.control_value];
+	full_frame[3] = full_frame[1]^full_frame[2];
 	for(; i<*length; i++){
-		full_message[i+4] = stuffed_message_control[i];
+		full_frame[i+4] = stuffed_frame[i];
 	}
-	full_message[*length+4] = FLAG;
+	full_frame[*length+4] = FLAG;
 	*length = *length+5;
 
-	free(stuffed_message_control);
+	free(stuffed_frame);
 
-	return full_message;
+	return full_frame;
 }
 
 
@@ -372,7 +372,7 @@ unsigned char* byte_destuffing(unsigned char* msg, int* length){
 
 
 int LLWRITE(int fd, unsigned char* msg, int* length){
-	unsigned char* full_message= create_package(msg, length);
+	unsigned char* full_message= create_frame(msg, length);
 	if(*length<0)
 		return FALSE;
 
@@ -453,7 +453,7 @@ unsigned char* LLREAD(int fd, int* length){
 		msg = mess_up_bcc2(msg, *length);
 	}
 
-	if(flag_error == 1){
+	if(flag_error == 1 || msg[2] == CW || msg[2] == CR){
 		return NULL;
 	}
 	if(msg[2] == DISC){

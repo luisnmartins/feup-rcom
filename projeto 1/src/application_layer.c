@@ -41,7 +41,7 @@ unsigned char* get_message(){
 	switch(readed_msg[0]){
 		case 0x02:
 			fprintf(fp_log, "[BEGIN FILE]\n");
-			start_message(readed_msg);
+			get_file_params(readed_msg);
 			break;
 		case 0x01:
 			utils_n_package++;
@@ -63,13 +63,13 @@ unsigned char* get_message(){
 }
 
 unsigned char* get_only_data(unsigned char* readed_msg, int* length){
-	int i=4;
 	int j=0;
-	unsigned char* only_data = (unsigned char*) malloc(*length-4);
-	for(; i<*length; i++, j++){
-			only_data[j] = readed_msg[i];
+	unsigned int size = readed_msg[2]*256 + readed_msg[3];
+	unsigned char* only_data = (unsigned char*) malloc(size);
+	for(; j<size; j++){
+			only_data[j] = readed_msg[j+4];
 	}
-	*length = *length-4;
+	*length = size;
 	free(readed_msg);
 	return only_data;
 }
@@ -98,7 +98,7 @@ int verify_end(unsigned char* msg){
 }
 
 
-void start_message(unsigned char* msg){
+void get_file_params(unsigned char* msg){
 
 	int i=0;
 	int j=0;
@@ -135,8 +135,8 @@ unsigned char* data_package_constructor(unsigned char* msg, int* length){
 
 		unsigned char c = 0x01;
 		static unsigned int n = 0;
-		int l2 = *length/255;
-		int l1 = *length%255;
+		int l2 = *length/256;
+		int l1 = *length%256;
 
 		data_package[0] = c;
 		data_package[1] = (char) n;
