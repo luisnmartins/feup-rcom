@@ -61,8 +61,20 @@ link_layer dl_layer;
 
 #define ERROR_BCC1 1
 #define ERROR_BCC2 2
-
+/**
+ * @brief Handles the alarm from thefunctions that wait a response.
+ */
 void alarm_handler();
+/**
+ * @brief verify the char received and if is ok, put it in the frame(trama)
+ * Also verify if BCC1 is incorrect
+ *
+ * @param c char to check
+ * @param state Actual state from the state machine
+ * @param trama Frame array to be filled with the char
+ * @param actual length of the frame array
+ * @param trama_type Type of the trama that is to be check. TRAMA_S or TRAMA_I
+ */
 void state_machine(unsigned char c, int* state, unsigned char* trama, int* length, int trama_type);
 int set_writer(int* fd);
 int set_reader(int* fd);
