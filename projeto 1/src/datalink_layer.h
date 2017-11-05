@@ -13,15 +13,6 @@
 #include <time.h>
 #include "utils.h"
 
-typedef struct{
-	struct termios oldtio;
-	struct termios newtio;
-	unsigned char control_value;
-	unsigned int timeout;
-	unsigned int max_transmissions;
-} link_layer;
-
-link_layer dl_layer;
 
 
 #define BAUDRATE B38400
@@ -61,6 +52,17 @@ link_layer dl_layer;
 
 #define ERROR_BCC1 1
 #define ERROR_BCC2 2
+
+typedef struct{
+	struct termios oldtio;
+	struct termios newtio;
+	unsigned char control_value;
+	unsigned int timeout;
+	unsigned int max_transmissions;
+} link_layer;
+
+link_layer dl_layer;
+
 /**
  * @brief Handles the alarm from thefunctions that wait a response.
  */
