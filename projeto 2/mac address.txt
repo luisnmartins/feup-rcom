@@ -1,0 +1,6 @@
+mac4 - 00:22:64:a6:a4:f1 , ifconfig eth0 172.16.20.254/24
+mac1 - 00:0f:fe:8c:af:9d , ifconfig eth0 172.16.20.1/24
+
+
+
+
