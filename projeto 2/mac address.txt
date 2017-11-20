@@ -1,6 +1,16 @@
 mac4 - 00:22:64:a6:a4:f1 , ifconfig eth0 172.16.20.254/24
 mac1 - 00:0f:fe:8c:af:9d , ifconfig eth0 172.16.20.1/24
 
+//Update aula 2
+mac2 - 00:21:5a:61:2b:72 , ifconfig eth0 172.16.21.1/24
+ma4 - 00:08:54:50:3f:2c , ifconfig eth1 172.16.21.253/24
 
+//Portas usadas
+tux1 - porta E0 , porta 1(switch)
+
+tux2 - porta E0 . porta 9(switch)
+
+tux4 - porta E0 , porta 5(switch)
+       porta E1 , porta 13(switch)
 
 
