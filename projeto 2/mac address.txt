@@ -14,3 +14,17 @@ tux4 - porta E0 , porta 5(switch) (VLAN 20)
        porta E1 , porta 13(switch) (VLAN 21)
 
 
+
+TUX 1 adicionar rota:
+       >> route add -net 172.16.21.0/24 gw 172.16.20.254
+       >> route add default gw 172.16.20.254
+       >> route -n
+
+TUX 2 adicionar rota:
+       >> route add -net 172.16.20.0/24 gw 172.16.21.253
+       >> route add default gw 172.16.21.253
+       >> route -n
+       
+ligacao 1 para 2
+
+tux2 - echo 1 > /proc/sys/net/ipv4/ip_forward
