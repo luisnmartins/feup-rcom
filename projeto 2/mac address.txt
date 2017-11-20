@@ -6,11 +6,11 @@ mac2 - 00:21:5a:61:2b:72 , ifconfig eth0 172.16.21.1/24
 ma4 - 00:08:54:50:3f:2c , ifconfig eth1 172.16.21.253/24
 
 //Portas usadas
-tux1 - porta E0 , porta 1(switch)
+tux1 - porta E0 , porta 1(switch) (VLAN 20)
 
-tux2 - porta E0 . porta 9(switch)
+tux2 - porta E0 . porta 9(switch) (VLAN 21)
 
-tux4 - porta E0 , porta 5(switch)
-       porta E1 , porta 13(switch)
+tux4 - porta E0 , porta 5(switch) (VLAN 20)
+       porta E1 , porta 13(switch) (VLAN 21)
 
 
