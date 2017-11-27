@@ -13,6 +13,8 @@ tux2 - porta E0 . porta 9(switch) (VLAN 21)
 tux4 - porta E0 , porta 5(switch) (VLAN 20)
        porta E1 , porta 13(switch) (VLAN 21)
 
+router cisco - Router GE0/0
+               porta 17 (VLAN 21)
 
 
 TUX 1 adicionar rota:
