@@ -28,3 +28,7 @@ TUX 2 adicionar rota:
 ligacao 1 para 2
 
 tux2 - echo 1 > /proc/sys/net/ipv4/ip_forward
+
+172.16.1.29 -> endereço externo do router cisco
+
+172.16.21.254 -> endereço interno do router cisco
