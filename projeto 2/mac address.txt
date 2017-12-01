@@ -1,3 +1,16 @@
+Ligacoes
+
+tux21e0 - sw1
+tux22e0 - sw9
+tux24e0 - sw5
+tux24e1 - sw13
+routerge0/0 - sw17
+2.1-routerge0/1
+2.12 - cabo que vem detras(porta serie)
+tux21s0 - t3
+sw/router console - t4 
+
+
 mac4 - 00:22:64:a6:a4:f1 , ifconfig eth0 172.16.20.254/24
 mac1 - 00:0f:fe:8c:af:9d , ifconfig eth0 172.16.20.1/24
 
