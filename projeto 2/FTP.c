@@ -6,6 +6,7 @@ static connection_info* connection;
 int sendMessage(int sockfd, char* message, char* param){
   int bytes;
   char* total_message = (char*) malloc(MAX_STRING_LENGTH);
+  memset(total_message, 0, MAX_STRING_LENGTH);
   strcat(total_message,message);
   if(param != NULL)
     strcat(total_message, param);
@@ -39,6 +40,7 @@ int getCodeResponse(int sockfd,char* response){
 
 char* communication(int sockfd,char* message,char* param){
   char* response = (char*) malloc(MAX_STRING_LENGTH);
+    memset(response, 0, MAX_STRING_LENGTH);
   int finalcode;
 
   do{
@@ -77,6 +79,7 @@ int logInServer(int sockfd){
 char* get_ip_addr(){
     struct hostent *h;
     char* ip = (char*) malloc(MAX_IP_LENGTH);
+    memset(ip, 0, MAX_IP_LENGTH);
     printf("HOST: %s\n", connection->hostname);
     if ((h=gethostbyname(connection->hostname)) == NULL) {
         herror("gethostbyname");
@@ -148,6 +151,7 @@ char* getFilename(){
                 break;
         }
     }
+    printf("Filename %s\n", filename);
     return filename;
 }
 

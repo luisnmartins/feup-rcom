@@ -32,9 +32,13 @@ connection_info* parseArgs(char* input) {
         return NULL;
     
     connection.user = (char*) malloc(MAX_STRING_LENGTH);
+    memset(connection.user, 0, MAX_STRING_LENGTH);
     connection.password = (char*) malloc(MAX_STRING_LENGTH);
+    memset(connection.password, 0, MAX_STRING_LENGTH);
     connection.hostname = (char*) malloc(MAX_STRING_LENGTH);
+    memset(connection.hostname, 0, MAX_STRING_LENGTH);
     connection.file_path = (char*) malloc(MAX_STRING_LENGTH);
+    memset(connection.file_path, 0, MAX_STRING_LENGTH);
     
     unsigned int i=6;
     unsigned int word_index = 0;
