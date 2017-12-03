@@ -12,7 +12,7 @@ int verifyInputRE(const char *input)
 {
     int    status;
     regex_t    reg;
-    char* RE = "ftp://[^]*:[^]*@[^]*/[^]*";
+    char* RE = "ftp://.*:.*@.*/.*";
     
     if (regcomp(&reg, RE, REG_EXTENDED|REG_NOSUB) != 0) {
         return(0);      /* Report error. */
@@ -28,13 +28,8 @@ int verifyInputRE(const char *input)
 
 connection_info* parseArgs(char* input) {
     
-    if(verifyInputRE(input)){
-        printf("PINTOU\n");
-    }
-    else{
-        printf("NAO PINTOU\n");
+    if(!verifyInputRE(input))
         return NULL;
-    }
     
     connection.user = (char*) malloc(MAX_STRING_LENGTH);
     connection.password = (char*) malloc(MAX_STRING_LENGTH);
