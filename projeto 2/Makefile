@@ -1,3 +1,3 @@
 make:
 	rm -f download.o
-	gcc -Wall FTP.c -o download
+	gcc -Wall parser.c FTP.c -o download

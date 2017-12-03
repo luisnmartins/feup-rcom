@@ -1,67 +1,7 @@
+#include "parser.h"
 #include "FTP.h"
 
-static connection_info connection;
-
-//TODO verify errors
-int parseArgs(char* input) {
-
-    connection.user = (char*) malloc(MAX_STRING_LENGTH);
-    connection.password = (char*) malloc(MAX_STRING_LENGTH);
-    connection.hostname = (char*) malloc(MAX_STRING_LENGTH);
-    connection.file_path = (char*) malloc(MAX_STRING_LENGTH);
-    
-    unsigned int i=6;
-    unsigned int word_index = 0;
-    unsigned int state=0;
-    unsigned int input_length = strlen(input);
-    char elem;
-
-
-    while(i < input_length){
-
-        elem = input[i];
-        switch(state){
-            case 0:
-                if(elem == ':') {
-                    word_index = 0;
-                    state = 1;
-
-                } else {
-                    connection.user[word_index] = elem;
-                    word_index++;
-                }
-                break;
-            case 1:
-                if(elem == '@'){
-                    word_index = 0;
-                    state = 2;
-
-                } else {
-                    connection.password[word_index] = elem;
-                    word_index++;
-                }
-                break;
-            case 2:
-                if(elem == '/'){
-                    word_index = 0;
-                    state = 3;
-                } else {
-                    connection.hostname[word_index] = elem;
-                    word_index++;
-                }
-                break;
-            case 3:
-                connection.file_path[word_index] = elem;
-                word_index++;
-                break;
-        }
-        i++;
-    }
-    connection.ip = get_ip_addr();
-    printf("IP address: %s\n", connection.ip);
-    return 0;
-}
-
+static connection_info* connection;
 
 int sendMessage(int sockfd, char* message, char* param){
   int bytes;
@@ -119,12 +59,12 @@ char* communication(int sockfd,char* message,char* param){
 
 
 int logInServer(int sockfd){
-  char* response = communication(sockfd, "user ", connection.user);
+  char* response = communication(sockfd, "user ", connection->user);
     if(response[0] != '3'){
         printf("%s\n", response);
         return 1;
     }
-  response = communication(sockfd, "pass ", connection.password);
+  response = communication(sockfd, "pass ", connection->password);
     if(response[0] != '2'){
         fprintf(stderr, "%s", "User or password incorrect\n");
         return 1;
@@ -137,7 +77,8 @@ int logInServer(int sockfd){
 char* get_ip_addr(){
     struct hostent *h;
     char* ip = (char*) malloc(MAX_IP_LENGTH);
-    if ((h=gethostbyname(connection.hostname)) == NULL) {
+    printf("HOST: %s\n", connection->hostname);
+    if ((h=gethostbyname(connection->hostname)) == NULL) {
         herror("gethostbyname");
         exit(1);
     }
@@ -155,7 +96,7 @@ int openConnection(int port,int isCommandConnection){
   /*server address handling*/
   bzero((char*)&server_addr,sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = inet_addr(connection.ip);     /*32 bit Internet address network byte ordered*/
+  server_addr.sin_addr.s_addr = inet_addr(connection->ip);     /*32 bit Internet address network byte ordered*/
   server_addr.sin_port = htons(port);        /*server TCP port must be network byte ordered */
 
   /*open an TCP socket*/
@@ -184,74 +125,16 @@ int openConnection(int port,int isCommandConnection){
   return sockfd;
 }
 
-
-int getPasvPort(char* msgToParse){
-
-  // get only numbers
-  char pasvCodes[24];
-  unsigned int length = strlen(msgToParse)-30;
-  int i=0;
-  for(; i < length; i++){
-    pasvCodes[i] = msgToParse[i+27];
-  }
-
-  // parse to get the last two numbers
-  unsigned int countCommas=0;
-  unsigned int state =0;
-  unsigned int actualPos = 0;
-  i=0;
-  char num1[4];
-  memset(num1, 0, 4);
-  char num2[4];
-  memset(num2, 0, 4);
-
-  while(1){
-    switch(state){
-      case 0:
-        if(pasvCodes[i] == ',') {
-          countCommas++;
-        }
-        if(countCommas == 4) {
-          state = 1;
-        }
-        break;
-      case 1:
-        if(pasvCodes[i] == ',') {
-          actualPos = 0;
-          state = 2;
-        } else {
-            num1[actualPos] = pasvCodes[i];
-            actualPos++;
-        }
-        break;
-      case 2:
-        if(pasvCodes[i] != ')') {
-          num2[actualPos] = pasvCodes[i];
-          actualPos++;
-        }
-        break;
-      }
-      if(pasvCodes[i] == ')'){
-        break;
-      }
-      i++;
-  }
-
-  int firstNumber = atoi(num1);
-  int secondNumber = atoi(num2);
-  return (firstNumber*256+secondNumber);
-}
-
 char* getFilename(){
     char* filename = (char*) malloc(MAX_STRING_LENGTH);
     memset(filename, 0, MAX_STRING_LENGTH);
     unsigned int i=0, j=0, state=0;
-    int length = strlen(connection.file_path);
+    int length = strlen(connection->file_path);
     while(i<length){
         switch (state) {
             case 0:
-                if(connection.file_path[i] != '/'){
-                    filename[j] = connection.file_path[i];
+                if(connection->file_path[i] != '/'){
+                    filename[j] = connection->file_path[i];
                     j++;
                 } else {
                     state = 1;
@@ -297,8 +180,13 @@ int main(int argc, char** argv){
 
     int commandSocket, dataSocket;
 
-    parseArgs(argv[1]);
-    
+    if((connection = parseArgs(argv[1])) == NULL){
+       printf("Input values are not valid! Please try again\n");
+       exit(1);
+    }
+    connection->ip = get_ip_addr();
+    printf("IP address: %s\n", connection->ip);
+       
     //open connection to the server to send commands
     commandSocket = openConnection(SERVER_PORT, 1);
     
@@ -311,13 +199,13 @@ int main(int argc, char** argv){
     
     //send pasv and get port to receive the file
     char* pasvResponse = communication(commandSocket, "pasv", NULL);
-    int dataPort = getPasvPort(pasvResponse);
+    int dataPort = parsePasvPort(pasvResponse);
     
     //open the new socket to receive the file
     dataSocket = openConnection(dataPort, 0);
     
     //send retrieve command to receive the file
-    sendMessage(commandSocket, "retr ", connection.file_path);
+    sendMessage(commandSocket, "retr ", connection->file_path);
     
     //get data and create file
     int fileBytes = getFile(dataSocket);
