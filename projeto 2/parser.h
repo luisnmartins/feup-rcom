@@ -18,6 +18,8 @@ typedef struct{
     char* hostname;
     char* file_path;
     char* ip;
+    int data_port;
+    int data_socket;
     
 } connection_info;
 

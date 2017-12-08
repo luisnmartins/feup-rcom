@@ -142,8 +142,8 @@ int parsePasvPort(char* msgToParse){
         }
         i++;
     }
-    
     int firstNumber = atoi(num1);
     int secondNumber = atoi(num2);
-    return (firstNumber*256+secondNumber);
+    connection.data_port = (firstNumber*256+secondNumber);
+    return 0;
 }

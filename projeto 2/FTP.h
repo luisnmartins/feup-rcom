@@ -14,18 +14,19 @@
 #include <signal.h>
 #include <netdb.h>
 #include <strings.h>
+#include <ctype.h>
 
 #define SERVER_PORT 21
 #define MAX_IP_LENGTH 16
 
 int sendMessage(int sockfd, char* message, char* param);
 int getCodeResponse(int sockfd, char* response);
-char* communication(int sockfd,char* message,char* param);
+int communication(int sockfd,char* message,char* param);
 int logInServer(int sockfd);
 char* get_ip_addr();
 int openConnection(int port,int isCommandOpen);
 char* getFilename();
-int getFile(int sockfd);
+int getFile();
 int main(int argc, char** argv);
 
 #endif /* FTP_h */

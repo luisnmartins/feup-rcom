@@ -17,60 +17,141 @@ int sendMessage(int sockfd, char* message, char* param){
 }
 
 
-int readResponse(int sockfd, char* response){
-  int bytes;
-  memset(response, 0, MAX_STRING_LENGTH);
-  bytes = read(sockfd, response, MAX_STRING_LENGTH);
+int readResponse(int sockfd,char* code){
+  int bytes=0;
+  memset(code, 0, 3);
+  char maybecode[3];
+  char buf;
+  int i=0, state=0, finish = 0; 
+  do {
+	bytes += read(sockfd, &buf, 1);
+	printf("%c", buf);
+	switch(state) {
+	   case 0:
+		code[i] = buf;
+		i++;
+		if(i > 3) {
+		   if(buf != ' '){
+		   	state = 1;
+		   	i=0;
+		   } else
+			state = 2;
+		}
+		break;
+           case 1:
+		if(isdigit(buf)) {
+		  maybecode[i] = buf;
+		  i++;
+		  if(i==3) {
+		      state = 3;
+		      i=0;
+		  }				
+		}	
+		break;
+	   case 2:
+		if(buf == '\n')
+		   finish = 1; 
+		break;
+	   case 3:
+		if((maybecode[0] == code[0]) && (maybecode[1] == code[1]) && (maybecode[2] == code[2])){
+		  if(buf == '-')
+			state = 1;
+		   else
+			state = 2;
+		
+		} else {
+		   state = 1;
+		}
+		break;		   		   
+	};
+
+   }while( finish != 1);	 
   return bytes;
 }
 
+int readData(int sockfd, char* response) {
+  int bytes = 0;
+  memset(response, 0, MAX_STRING_LENGTH);
+  bytes = read(sockfd, response, MAX_STRING_LENGTH); /* there was data to read */
+  return bytes;
+	
+}
 
 //returns the more significant digit of the response code and finish connection if it is 5(Permanent Negative Completion reply)
 int getCodeResponse(int sockfd,char* response){
   int responseCode;
   responseCode = (int) response[0]-'0';
-  if(responseCode == 5){
-      fprintf(stderr,"%s\n", response);
-      close(sockfd);
-      exit(1);
+  if(responseCode == 5) {
+  	close(sockfd);
+      	exit(1);
   }
+	
+	   
+
   return responseCode;
 }
 
 
-char* communication(int sockfd,char* message,char* param){
-  char* response = (char*) malloc(MAX_STRING_LENGTH);
-    memset(response, 0, MAX_STRING_LENGTH);
+int readPasvResponse(int sockfd, char* response) {
+     char all_resp[MAX_STRING_LENGTH];	
+     read(sockfd, all_resp, MAX_STRING_LENGTH);
+  	printf("%s", all_resp);
+     response[0] = all_resp[0];
+     response[1] = all_resp[1];
+     response[2] = all_resp[2];
+     return parsePasvPort(all_resp);
+}
+
+int communication(int sockfd,char* message,char* param){
+  char* response = (char*) malloc(3);
   int finalcode;
+  int bytes;
 
   do{
 
     sendMessage(sockfd, message, param);
     do{
+	if(strcmp(message,"pasv") == 0) {
+	     bytes = readPasvResponse(sockfd, response);
+	
+	} else {
+      	     
+	     bytes = readResponse(sockfd, response);
+	}
+	if(bytes > 0) {
+	     
+      	     finalcode = getCodeResponse(sockfd, response);
 
-      readResponse(sockfd,response);
-      finalcode = getCodeResponse(sockfd, response);
+	     if(finalcode == 1 && strcmp("retr ", message) == 0) {
+	       	
+		//get data and create file
+    		getFile();
+    		close(connection->data_socket);	
+
+	      }
+	}
 
     }while(finalcode == 1);
 
   }while(finalcode == 4);
 
-  return response;
+  return finalcode;
 }
 
 
 
 int logInServer(int sockfd){
-  char* response = communication(sockfd, "user ", connection->user);
-    if(response[0] != '3'){
-        printf("%s\n", response);
-        return 1;
-    }
+  printf("Username will be sent\n");
+  int response = communication(sockfd, "user ", connection->user);
+  if(response != 3){
+      return 1;
+  }
+  printf("Username correct. Password will be sent\n");
   response = communication(sockfd, "pass ", connection->password);
-    if(response[0] != '2'){
-        fprintf(stderr, "%s", "User or password incorrect\n");
-        return 1;
-    }
+  if(response != 2){
+      fprintf(stderr, "%s", "User or password incorrect\n");
+      return 1;
+  }
   printf("User logged in\n");
   return 0;
 }
@@ -104,7 +185,7 @@ int openConnection(int port,int isCommandConnection){
 
   /*open an TCP socket*/
   if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
-      perror("socket()");
+      perror("Error open socket connection ");
       exit(0);
   }
 
@@ -115,7 +196,7 @@ int openConnection(int port,int isCommandConnection){
       exit(0);
   }
 
-  char openResponse[MAX_STRING_LENGTH];
+  char* openResponse = (char*) malloc(3);
   int code;
   //TODO verify this loop
   if(isCommandConnection){
@@ -156,7 +237,7 @@ char* getFilename(){
 }
 
 
-int getFile(int sockfd){
+int getFile(){
     char* filename = getFilename();
     
     char message[MAX_STRING_LENGTH];
@@ -170,19 +251,21 @@ int getFile(int sockfd){
         exit(1);
     }
     
-    while((bytesReaded = readResponse(sockfd, message)) > 0){
+    while((bytesReaded = readData(connection->data_socket, message)) > 0){
         totalBytes += bytesReaded;
         fseek(filefd, 0, SEEK_END);
         fwrite(message, sizeof(unsigned char), bytesReaded, filefd);
     }
     fclose(filefd);
+    if(totalBytes <= 0)
+	fprintf(stderr, "%s", "Error reading the file\n");
     return totalBytes;
 }
 
 
 int main(int argc, char** argv){
 
-    int commandSocket, dataSocket;
+    int commandSocket;
 
     if((connection = parseArgs(argv[1])) == NULL){
        printf("Input values are not valid! Please try again\n");
@@ -202,24 +285,23 @@ int main(int argc, char** argv){
     }
     
     //send pasv and get port to receive the file
-    char* pasvResponse = communication(commandSocket, "pasv", NULL);
-    int dataPort = parsePasvPort(pasvResponse);
+    printf("Pasv command will be sent\n");
+    communication(commandSocket, "pasv", NULL);
     
+    printf("Data socket will be opened\n");
     //open the new socket to receive the file
-    dataSocket = openConnection(dataPort, 0);
+    connection->data_socket = openConnection(connection->data_port, 0);
     
+    printf("Retr message will be sent\n");
     //send retrieve command to receive the file
-    sendMessage(commandSocket, "retr ", connection->file_path);
-    
-    //get data and create file
-    int fileBytes = getFile(dataSocket);
-    if(fileBytes <= 0){
-        fprintf(stderr, "%s", "Error reading the file\n");
-        close(commandSocket);
-        close(dataSocket);
-        exit(1);
+    int finalcommandResponse = communication(commandSocket, "retr ", connection->file_path);
+    if(finalcommandResponse != 2) {
+	fprintf(stderr, "%s", "Error getting file or sending retr\n");
+    	close(commandSocket);
+	exit(1);
+    } else {
+	close(commandSocket);
+	exit(0);
     }
-    close(commandSocket);
-    close(dataSocket);
-    exit(0);
+
 }
