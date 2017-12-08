@@ -20,10 +20,12 @@ typedef struct{
     char* ip;
     int data_port;
     int data_socket;
+    int size;
     
 } connection_info;
 
 connection_info* parseArgs(char* input);
 int parsePasvPort(char* msgToParse);
+int parseSize(char* response);
 
 #endif /* parser_h */

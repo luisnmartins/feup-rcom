@@ -147,3 +147,18 @@ int parsePasvPort(char* msgToParse){
     connection.data_port = (firstNumber*256+secondNumber);
     return 0;
 }
+
+int parseSize(char* response) {
+    int i=4, j=0;
+    char number[MAX_STRING_LENGTH];
+    memset(number, 0, MAX_STRING_LENGTH);
+    for(; i<strlen(response); i++, j++) {
+        if(response[i] != '\n') {
+            number[j] = response[i];
+        }
+        else
+            break;
+    }
+    connection.size = (int)strtol(number, (char **)NULL, 10);
+    return 0;
+}

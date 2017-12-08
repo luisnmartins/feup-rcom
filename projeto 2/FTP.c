@@ -85,22 +85,29 @@ int getCodeResponse(int sockfd,char* response){
   	close(sockfd);
       	exit(1);
   }
-	
-	   
 
   return responseCode;
 }
 
 
-int readPasvResponse(int sockfd, char* response) {
-     char all_resp[MAX_STRING_LENGTH];	
-     read(sockfd, all_resp, MAX_STRING_LENGTH);
-  	printf("%s", all_resp);
-     response[0] = all_resp[0];
-     response[1] = all_resp[1];
-     response[2] = all_resp[2];
-     return parsePasvPort(all_resp);
+int readOtherResponse(int sockfd, char* response, char* message) {
+    int bytes;
+    char all_resp[MAX_STRING_LENGTH];
+    bytes = read(sockfd, all_resp, MAX_STRING_LENGTH);
+    printf("%s", all_resp);
+    if(bytes > 0) {
+        memset(response, 0, MAX_STRING_LENGTH);
+        response[0] = all_resp[0];
+        response[1] = all_resp[1];
+        response[2] = all_resp[2];
+        if(strcmp(message, "pasv") == 0)
+            parsePasvPort(all_resp);
+        else
+            parseSize(all_resp);
+    }
+    return bytes;
 }
+
 
 int communication(int sockfd,char* message,char* param){
   char* response = (char*) malloc(3);
@@ -109,29 +116,28 @@ int communication(int sockfd,char* message,char* param){
 
   do{
 
-    sendMessage(sockfd, message, param);
-    do{
-	if(strcmp(message,"pasv") == 0) {
-	     bytes = readPasvResponse(sockfd, response);
-	
-	} else {
-      	     
-	     bytes = readResponse(sockfd, response);
-	}
-	if(bytes > 0) {
+      sendMessage(sockfd, message, param);
+      
+      do{
+          if((strcmp(message,"pasv") == 0) || (strcmp(message, "SIZE ") == 0)) {
+              bytes = readOtherResponse(sockfd, response, message);
+          } else {
+        
+              bytes = readResponse(sockfd, response);
+          }
+          if(bytes > 0) {
 	     
-      	     finalcode = getCodeResponse(sockfd, response);
+              finalcode = getCodeResponse(sockfd, response);
 
-	     if(finalcode == 1 && strcmp("retr ", message) == 0) {
+              if(finalcode == 1 && strcmp("retr ", message) == 0) {
 	       	
-		//get data and create file
-    		getFile();
-    		close(connection->data_socket);	
+                  //get data and create file
+                  getFile();
+                  close(connection->data_socket);
+              }
+          }
 
-	      }
-	}
-
-    }while(finalcode == 1);
+      }while(finalcode == 1);
 
   }while(finalcode == 4);
 
@@ -250,7 +256,7 @@ int getFile(){
         fprintf(stderr, "%s", "Error opening file to write!\n");
         exit(1);
     }
-    
+    printf("Reading file\n");
     while((bytesReaded = readData(connection->data_socket, message)) > 0){
         totalBytes += bytesReaded;
         fseek(filefd, 0, SEEK_END);
@@ -260,6 +266,19 @@ int getFile(){
     if(totalBytes <= 0)
 	fprintf(stderr, "%s", "Error reading the file\n");
     return totalBytes;
+}
+
+int verifyFileSize() {
+    char* filename = getFilename();
+    FILE* filefd = fopen(filename, "r");
+    fseek(filefd, 0L, SEEK_END);
+    int size = ftell(filefd);
+    fseek(filefd, 0L, SEEK_SET);
+    fclose(filefd);
+    if(size == connection->size)
+        return 1;
+    else
+        return 0;
 }
 
 
@@ -283,6 +302,9 @@ int main(int argc, char** argv){
       close(commandSocket);
       exit(1);
     }
+    //send size command
+    printf("Size command will be sent\n");
+    communication(commandSocket, "SIZE ", connection->file_path);
     
     //send pasv and get port to receive the file
     printf("Pasv command will be sent\n");
@@ -295,13 +317,17 @@ int main(int argc, char** argv){
     printf("Retr message will be sent\n");
     //send retrieve command to receive the file
     int finalcommandResponse = communication(commandSocket, "retr ", connection->file_path);
+    close(commandSocket);
     if(finalcommandResponse != 2) {
-	fprintf(stderr, "%s", "Error getting file or sending retr\n");
-    	close(commandSocket);
-	exit(1);
+        fprintf(stderr, "%s", "Error getting file or sending retr\n");
+        exit(1);
     } else {
-	close(commandSocket);
-	exit(0);
+        if(verifyFileSize()) {
+            exit(0);
+        } else {
+            fprintf(stderr, "%s\n", "The received file is probably damaged\n");
+            exit(1);
+        }
     }
 
 }
