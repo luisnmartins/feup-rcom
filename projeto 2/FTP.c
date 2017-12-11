@@ -10,7 +10,7 @@ int sendMessage(int sockfd, char* message, char* param){
   strcat(total_message,message);
   if(param != NULL)
     strcat(total_message, param);
-  strcat(total_message, "\n");
+  strcat(total_message, "\r\n");
   /*send a string to the server*/
   bytes = write(sockfd, total_message, strlen(total_message));
   return bytes;
@@ -74,7 +74,6 @@ int readData(int sockfd, char* response) {
   memset(response, 0, MAX_STRING_LENGTH);
   bytes = read(sockfd, response, MAX_STRING_LENGTH); /* there was data to read */
   return bytes;
-	
 }
 
 //returns the more significant digit of the response code and finish connection if it is 5(Permanent Negative Completion reply)
@@ -92,11 +91,12 @@ int getCodeResponse(int sockfd,char* response){
 
 int readOtherResponse(int sockfd, char* response, char* message) {
     int bytes;
-    char all_resp[MAX_STRING_LENGTH];
+    char* all_resp = (char*) malloc(MAX_STRING_LENGTH);
+    memset(all_resp, 0, MAX_STRING_LENGTH);
     bytes = read(sockfd, all_resp, MAX_STRING_LENGTH);
     printf("%s", all_resp);
     if(bytes > 0) {
-        memset(response, 0, MAX_STRING_LENGTH);
+        memset(response, 0, 3);
         response[0] = all_resp[0];
         response[1] = all_resp[1];
         response[2] = all_resp[2];
@@ -111,6 +111,7 @@ int readOtherResponse(int sockfd, char* response, char* message) {
 
 int communication(int sockfd,char* message,char* param){
   char* response = (char*) malloc(3);
+
   int finalcode;
   int bytes;
 
@@ -147,18 +148,18 @@ int communication(int sockfd,char* message,char* param){
 
 
 int logInServer(int sockfd){
-  printf("Username will be sent\n");
+    printf(" > Username will be sent\n");
   int response = communication(sockfd, "user ", connection->user);
   if(response != 3){
       return 1;
   }
-  printf("Username correct. Password will be sent\n");
+  printf(" > Username correct. Password will be sent\n");
   response = communication(sockfd, "pass ", connection->password);
   if(response != 2){
       fprintf(stderr, "%s", "User or password incorrect\n");
       return 1;
   }
-  printf("User logged in\n");
+  printf(" > User logged in\n");
   return 0;
 }
 
@@ -167,7 +168,7 @@ char* get_ip_addr(){
     struct hostent *h;
     char* ip = (char*) malloc(MAX_IP_LENGTH);
     memset(ip, 0, MAX_IP_LENGTH);
-    printf("HOST: %s\n", connection->hostname);
+    printf("[HOST: %s]\n", connection->hostname);
     if ((h=gethostbyname(connection->hostname)) == NULL) {
         herror("gethostbyname");
         exit(1);
@@ -238,7 +239,7 @@ char* getFilename(){
                 break;
         }
     }
-    printf("Filename %s\n", filename);
+    printf("[Filename %s]\n", filename);
     return filename;
 }
 
@@ -246,17 +247,17 @@ char* getFilename(){
 int getFile(){
     char* filename = getFilename();
     
-    char message[MAX_STRING_LENGTH];
+    char* message = (char*) malloc(MAX_STRING_LENGTH);
     unsigned int bytesReaded;
     unsigned int totalBytes=0;
     
     FILE* filefd = fopen(filename, "w");
     if (filefd == NULL)
     {
-        fprintf(stderr, "%s", "Error opening file to write!\n");
+        fprintf(stderr, "%s", " > Error opening file to write!\n");
         exit(1);
     }
-    printf("Reading file\n");
+    printf(" > Reading file\n");
     while((bytesReaded = readData(connection->data_socket, message)) > 0){
         totalBytes += bytesReaded;
         fseek(filefd, 0, SEEK_END);
@@ -264,7 +265,7 @@ int getFile(){
     }
     fclose(filefd);
     if(totalBytes <= 0)
-	fprintf(stderr, "%s", "Error reading the file\n");
+	fprintf(stderr, "%s", " > Error reading the file\n");
     return totalBytes;
 }
 
@@ -285,47 +286,50 @@ int verifyFileSize() {
 int main(int argc, char** argv){
 
     int commandSocket;
-
+    if(argv[1] == NULL) {
+        printf(" > Input structure is not correct. Please write a second arg with the following structure: ftp://<username>:<password>@<host>/<file path>\n");
+        exit(1);
+    }
     if((connection = parseArgs(argv[1])) == NULL){
-       printf("Input values are not valid! Please try again\n");
+       printf(" > Input values are not valid! Please try again\n");
        exit(1);
     }
     connection->ip = get_ip_addr();
-    printf("IP address: %s\n", connection->ip);
+    printf("[IP address: %s]\n", connection->ip);
        
     //open connection to the server to send commands
     commandSocket = openConnection(SERVER_PORT, 1);
     
     //error logging In
     if(logInServer(commandSocket) != 0){
-      fprintf(stderr, "%s", "Error logging in. Please try again!\n");
+      fprintf(stderr, "%s", " > Error logging in. Please try again!\n");
       close(commandSocket);
       exit(1);
     }
     //send size command
-    printf("Size command will be sent\n");
+    printf(" > Size command will be sent\n");
     communication(commandSocket, "SIZE ", connection->file_path);
     
     //send pasv and get port to receive the file
-    printf("Pasv command will be sent\n");
+    printf(" > Pasv command will be sent\n");
     communication(commandSocket, "pasv", NULL);
     
-    printf("Data socket will be opened\n");
+    printf(" > Data socket will be opened\n");
     //open the new socket to receive the file
     connection->data_socket = openConnection(connection->data_port, 0);
     
-    printf("Retr message will be sent\n");
+    printf(" > Retr message will be sent\n");
     //send retrieve command to receive the file
     int finalcommandResponse = communication(commandSocket, "retr ", connection->file_path);
     close(commandSocket);
     if(finalcommandResponse != 2) {
-        fprintf(stderr, "%s", "Error getting file or sending retr\n");
+        fprintf(stderr, "%s", " > Error getting file or sending retr\n");
         exit(1);
     } else {
         if(verifyFileSize()) {
             exit(0);
         } else {
-            fprintf(stderr, "%s\n", "The received file is probably damaged\n");
+            fprintf(stderr, "%s\n", " > The received file is probably damaged\n");
             exit(1);
         }
     }

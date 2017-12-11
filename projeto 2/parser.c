@@ -87,6 +87,8 @@ connection_info* parseArgs(char* input) {
         }
         i++;
     }
+    printf("[Username: %s]\n", connection.user);
+    printf("[Password: %s]\n", connection.password);
     return &connection;
 }
 
