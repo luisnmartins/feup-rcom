@@ -3,6 +3,7 @@
 
 static connection_info* connection;
 
+
 int sendMessage(int sockfd, char* message, char* param){
   int bytes;
   char* total_message = (char*) malloc(MAX_STRING_LENGTH);

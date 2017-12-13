@@ -20,7 +20,7 @@ typedef struct{
     char* ip;
     int data_port;
     int data_socket;
-    int size;
+    long size;
     
 } connection_info;
 

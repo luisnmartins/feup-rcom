@@ -45,8 +45,7 @@ connection_info* parseArgs(char* input) {
     unsigned int state=0;
     unsigned int input_length = strlen(input);
     char elem;
-    
-    
+
     while(i < input_length){
         
         elem = input[i];
@@ -97,70 +96,21 @@ int parsePasvPort(char* msgToParse){
     
     // get only numbers
     char pasvCodes[24];
-    unsigned int length = strlen(msgToParse)-30;
+    unsigned int length = strlen(msgToParse)-29;
     int i=0;
     for(; i < length; i++){
-        pasvCodes[i] = msgToParse[i+27];
+        pasvCodes[i] = msgToParse[i+26];
     }
-    
     // parse to get the last two numbers
-    unsigned int countCommas=0;
-    unsigned int state =0;
-    unsigned int actualPos = 0;
-    i=0;
-    char num1[4];
-    memset(num1, 0, 4);
-    char num2[4];
-    memset(num2, 0, 4);
-    
-    while(1){
-        switch(state){
-            case 0:
-                if(pasvCodes[i] == ',') {
-                    countCommas++;
-                }
-                if(countCommas == 4) {
-                    state = 1;
-                }
-                break;
-            case 1:
-                if(pasvCodes[i] == ',') {
-                    actualPos = 0;
-                    state = 2;
-                } else {
-                    num1[actualPos] = pasvCodes[i];
-                    actualPos++;
-                }
-                break;
-            case 2:
-                if(pasvCodes[i] != ')') {
-                    num2[actualPos] = pasvCodes[i];
-                    actualPos++;
-                }
-                break;
-        }
-        if(pasvCodes[i] == ')'){
-            break;
-        }
-        i++;
-    }
-    int firstNumber = atoi(num1);
-    int secondNumber = atoi(num2);
-    connection.data_port = (firstNumber*256+secondNumber);
+    int num1, num2, escp;
+    sscanf(pasvCodes, "(%d,%d,%d,%d,%d,%d)", &escp, &escp, &escp, &escp, &num1, &num2);
+    connection.data_port = (num1*256+num2);
     return 0;
 }
 
 int parseSize(char* response) {
-    int i=4, j=0;
-    char number[MAX_STRING_LENGTH];
-    memset(number, 0, MAX_STRING_LENGTH);
-    for(; i<strlen(response); i++, j++) {
-        if(response[i] != '\n') {
-            number[j] = response[i];
-        }
-        else
-            break;
-    }
-    connection.size = (int)strtol(number, (char **)NULL, 10);
+    int escp;
+    sscanf(response, "%d %ld", &escp, &connection.size);
+    printf(" > File size: %ld\n", connection.size);
     return 0;
 }

@@ -19,6 +19,12 @@
 #define SERVER_PORT 21
 #define MAX_IP_LENGTH 16
 
+/**
+ * Send a message to the file descriptor sokfd 
+ * with the following structure: message+param+"\r\n". 
+ * The 2 final characters represent the end of 
+
+*/
 int sendMessage(int sockfd, char* message, char* param);
 int getCodeResponse(int sockfd, char* response);
 int communication(int sockfd,char* message,char* param);
