@@ -24,8 +24,21 @@ typedef struct{
     
 } connection_info;
 
+/**
+ * Parse user input and
+ * create a new connection_info
+ * structure with the information gotten
+*/
 connection_info* parseArgs(char* input);
+/**
+* Parse message gotten as response for PASV
+* command and get the port to the data socket
+*/
 int parsePasvPort(char* msgToParse);
+/**
+ * Parse size message response
+ * to get the file size
+*/
 int parseSize(char* response);
 
 #endif /* parser_h */

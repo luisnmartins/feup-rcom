@@ -54,7 +54,9 @@ int readResponse(int sockfd,char* code){
 		   finish = 1; 
 		break;
 	   case 3:
-		if((maybecode[0] == code[0]) && (maybecode[1] == code[1]) && (maybecode[2] == code[2])){
+		if((maybecode[0] == code[0]) &&
+           (maybecode[1] == code[1]) &&
+           (maybecode[2] == code[2])){
 		  if(buf == '-')
 			state = 1;
 		   else
@@ -73,17 +75,17 @@ int readResponse(int sockfd,char* code){
 int readData(int sockfd, char* response) {
   int bytes = 0;
   memset(response, 0, MAX_STRING_LENGTH);
-  bytes = read(sockfd, response, MAX_STRING_LENGTH); /* there was data to read */
+    bytes = read(sockfd, response, MAX_STRING_LENGTH);
   return bytes;
 }
 
-//returns the more significant digit of the response code and finish connection if it is 5(Permanent Negative Completion reply)
+
 int getCodeResponse(int sockfd,char* response){
   int responseCode;
   responseCode = (int) response[0]-'0';
   if(responseCode == 5) {
   	close(sockfd);
-      	exit(1);
+    exit(1);
   }
 
   return responseCode;
@@ -121,7 +123,8 @@ int communication(int sockfd,char* message,char* param){
       sendMessage(sockfd, message, param);
       
       do{
-          if((strcmp(message,"pasv") == 0) || (strcmp(message, "SIZE ") == 0)) {
+          if((strcmp(message,"pasv") == 0) ||
+             (strcmp(message, "SIZE ") == 0)) {
               bytes = readOtherResponse(sockfd, response, message);
           } else {
         
@@ -184,12 +187,11 @@ int openConnection(int port,int isCommandConnection){
   int    sockfd;
   struct    sockaddr_in server_addr;
 
-
   /*server address handling*/
   bzero((char*)&server_addr,sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = inet_addr(connection->ip);     /*32 bit Internet address network byte ordered*/
-  server_addr.sin_port = htons(port);        /*server TCP port must be network byte ordered */
+  server_addr.sin_addr.s_addr = inet_addr(connection->ip);
+  server_addr.sin_port = htons(port);
 
   /*open an TCP socket*/
   if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
@@ -213,7 +215,6 @@ int openConnection(int port,int isCommandConnection){
       code = getCodeResponse(sockfd, openResponse);
     }while(code != 2);
   }
-
   return sockfd;
 }
 
@@ -288,7 +289,7 @@ int main(int argc, char** argv){
 
     int commandSocket;
     if(argv[1] == NULL) {
-        printf(" > Input structure is not correct. Please write a second arg with the following structure: ftp://<username>:<password>@<host>/<file path>\n");
+        printf(" > Error.Use the structure: ftp://<username>:<password>@<host>/<file>\n");
         exit(1);
     }
     if((connection = parseArgs(argv[1])) == NULL){
@@ -321,7 +322,8 @@ int main(int argc, char** argv){
     
     printf(" > Retr message will be sent\n");
     //send retrieve command to receive the file
-    int finalcommandResponse = communication(commandSocket, "retr ", connection->file_path);
+    int finalcommandResponse;
+    finalcommandResponse = communication(commandSocket, "retr ", connection->file_path);
     close(commandSocket);
     if(finalcommandResponse != 2) {
         fprintf(stderr, "%s", " > Error getting file or sending retr\n");
