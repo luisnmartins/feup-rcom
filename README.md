@@ -30,6 +30,11 @@ Aplicações                 |  Chamada
 </p>
 
 
+Aplicação                  |  Chamada
+---------------------------|:-------------------------:|
+Download                   |  <p>download ftp://{user}:{password}@{host}/{url-path} <br><br> **Ex:** download ftp://demo:password@test.rebex.net/pub/example/mail-editor.pt </p>
+
+
 ***
 
 ### Developers
